@@ -1,24 +1,83 @@
 version: "3.9"
 
 services:
-    prometheus: 
-        image: prom/prometheus
-        container_name: prometheus
-        volumes:
-            - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
-            ports:
-             - "9090:9090"
+  # Prometheus - Time-series metrics database
+  prometheus: 
+    image: prom/prometheus:latest
+    container_name: prometheus
+    hostname: prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+    networks:
+      - costpilot_network
+    restart: unless-stopped
 
-    node_exporter:
-        image:prom/node_exporter
-        container_name: node_exporter
-        ports:
-            - "9100:9100"
+  # Node Exporter - Host system metrics (CPU, memory, disk, network)
+  node_exporter:
+    image: prom/node-exporter:latest
+    container_name: node_exporter
+    hostname: node_exporter
+    ports:
+      - "9100:9100"
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - costpilot_network
+    restart: unless-stopped
 
-    backend:
-        build: ./backend
-        container_name : backend
-        ports:
-            - "8000:8000"
-        depends_on:
-         - prometheus
+  # Backend Application
+  backend:
+    build: ../backend
+    container_name: backend
+    hostname: backend
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PROMETHEUS_URL=http://prometheus:9090
+    depends_on:
+      - prometheus
+      - node_exporter
+    networks:
+      - costpilot_network
+    restart: unless-stopped
+    volumes:
+      - ../backend:/app
+
+  # Grafana - Visualization and dashboards (optional but recommended)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    hostname: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - costpilot_network
+    restart: unless-stopped
+
+volumes:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  costpilot_network:
+    driver: bridge
