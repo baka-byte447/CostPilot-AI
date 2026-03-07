@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from app.api.metrics import router as metrics_router
 from app.config.database import engine, Base
 from app.api.forecast import router as forecast_router
+from app.api.cost import router as cost_router
 
 from prometheus_client import generate_latest
 from prometheus_client import CONTENT_TYPE_LATEST
@@ -14,6 +15,7 @@ app = FastAPI()
 Base.metadata.create_all(bind=engine)
 app.include_router(metrics_router)
 app.include_router(forecast_router)
+app.include_router(cost_router)
 
 @app.on_event("startup")
 def start_background_worker():
