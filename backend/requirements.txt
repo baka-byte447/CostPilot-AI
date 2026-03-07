@@ -6,3 +6,4 @@ schedule
 pandas
 prophet
 scikit-learn
+prometheus-client

@@ -9,7 +9,8 @@ def load_metrics_dataframe(db:Session):
         rows.append({
             "timestamp":item.timestamp,
             "cpu_usage":item.cpu_usage,
-            "memory_usage":item.memory_usage
+            "memory_usage":item.memory_usage,
+            "request_load":item.request_load
         })
 
     df = pd.DataFrame(rows)

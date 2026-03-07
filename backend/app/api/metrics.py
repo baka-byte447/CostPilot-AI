@@ -24,7 +24,8 @@ def read_metrics(db: Session =Depends(get_db)):
     return [{"id":item.id,
              "cpu_usage":item.cpu_usage,
              "memory_usage":item.memory_usage,
-             "timestamp":item.timestamp}
+             "request_load":item.request_load,
+             "timestamp":item.timestamp,}
              
              for item in data]
 

@@ -5,3 +5,8 @@ scrape_configs:
   - job_name: "node"
     static_configs:
     - targets: ["node_exporter:9100"]
+  
+  - job_name: "backend_app"
+    static_configs:
+      - targets: ["backend:8000"]
+    metrics_path: /app_metrics
