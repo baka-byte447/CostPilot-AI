@@ -2,3 +2,7 @@ fastapi
 uvicorn
 requests
 sqlalchemy
+schedule
+pandas
+prophet
+scikit-learn

@@ -22,6 +22,10 @@ def collect_and_store_metrics(db: Session):
     memory = fetch_prometheus_data(MEMORY_QUERY)
 
     metric = Metrics(cpu_usage=cpu, memory_usage=memory , timestamp=datetime.utcnow())
+    
+    db.add(metric)
+    db.commit()
+    db.refresh(metric)
 
     return {
         "cpu_usage" : cpu, "memory_usage" : memory, "timestamp": metric.timestamp

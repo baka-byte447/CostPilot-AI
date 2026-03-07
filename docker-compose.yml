@@ -5,12 +5,12 @@ services:
         image: prom/prometheus
         container_name: prometheus
         volumes:
-            - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
-            ports:
+        - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+        ports:
              - "9090:9090"
 
     node_exporter:
-        image:prom/node_exporter
+        image: prom/node-exporter
         container_name: node_exporter
         ports:
             - "9100:9100"
@@ -22,3 +22,5 @@ services:
             - "8000:8000"
         depends_on:
          - prometheus
+        volumes:
+         - ./database:/app/database
