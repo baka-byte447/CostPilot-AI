@@ -17,10 +17,12 @@ services:
 
     backend:
         build: ./backend
-        container_name : backend
+        container_name: backend
         ports:
             - "8000:8000"
         depends_on:
-         - prometheus
+            - prometheus
         volumes:
-         - ./database:/app/database
+            - ./database:/app/database
+            - ./rl_models:/app/app/rl/models
+            - ~/.kube:/root/.kube
