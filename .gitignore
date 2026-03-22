@@ -1,2 +1,5 @@
 .env
 minikube-linux-amd64
+node_modules/
+dashboard/
+package-lock.json
