@@ -7,6 +7,7 @@ from app.api.optimize import router as optimize_router
 #from app.api.cloud_cost import router as cost_router
 
 from app.api.aws import router as aws_router
+from app.api.azure import router as azure_router
 
 from prometheus_client import generate_latest
 from prometheus_client import CONTENT_TYPE_LATEST
@@ -23,7 +24,7 @@ app.include_router(cost_router)
 app.include_router(optimize_router)
 #app.include_router(cost_router)
 app.include_router(aws_router) 
-
+app.include_router(azure_router)
 
 @app.on_event("startup")
 def start_background_worker():

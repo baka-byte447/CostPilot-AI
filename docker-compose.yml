@@ -1,28 +1,70 @@
 version: "3.9"
 
 services:
-    prometheus: 
-        image: prom/prometheus
-        container_name: prometheus
-        volumes:
-        - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-        ports:
-             - "9090:9090"
 
-    node_exporter:
-        image: prom/node-exporter
-        container_name: node_exporter
-        ports:
-            - "9100:9100"
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
 
-    backend:
-        build: ./backend
-        container_name: backend
-        ports:
-            - "8000:8000"
-        depends_on:
-            - prometheus
-        volumes:
-            - ./database:/app/database
-            - ./rl_models:/app/app/rl/models
-            - ~/.kube:/root/.kube
+  node_exporter:
+    image: prom/node-exporter
+    container_name: node_exporter
+    ports:
+      - "9100:9100"
+
+  localstack:
+    image: localstack/localstack:3.0
+    container_name: localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=ec2,ecs,eks,ce,autoscaling,cloudwatch,sts,iam
+      - DEBUG=0
+      - PERSISTENCE=1
+    volumes:
+      - localstack_data:/var/lib/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  backend:
+    build: ./backend
+    container_name: backend
+    env_file:
+      - .env
+    environment:
+      - AWS_MODE=true
+      - AWS_ENDPOINT_URL=http://localstack:4566
+      - AWS_DEFAULT_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AZURE_MODE=true
+      - AZURE_LOCATION=centralindia
+      - AZURE_RESOURCE_GROUP=nimbusopt-rg
+      - AZURE_VMSS_NAME=nimbusopt-vmss
+      - AZURE_ACI_GROUP=nimbusopt-containers
+    ports:
+      - "8000:8000"
+    depends_on:
+      localstack:
+        condition: service_healthy
+      prometheus:
+        condition: service_started
+    volumes:
+      - ./database:/app/database
+      - ./rl_models:/app/app/rl/models
+      - ~/.kube:/root/.kube
+
+volumes:
+  localstack_data:
+
+
+  
