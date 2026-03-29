@@ -8,4 +8,5 @@ class Metrics(Base):
     id = Column(Integer, primary_key=True, index=True)
     cpu_usage = Column(Float)
     memory_usage = Column(Float)
+    request_load = Column(Float)
     timestamp = Column(DateTime, default=datetime.utcnow)

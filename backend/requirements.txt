@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 fastapi==0.104.1
 uvicorn==0.24.0
 requests==2.31.0
@@ -8,3 +9,15 @@ python-dotenv==1.0.0
 aiohttp==3.9.1
 pydantic==2.5.0
 pydantic-settings==2.1.0
+=======
+fastapi
+uvicorn
+requests
+sqlalchemy
+schedule
+pandas
+prophet
+scikit-learn
+prometheus-client
+kubernetes
+>>>>>>> 28ba8b2a917721cbe4d390a8c72af6b0b8c8ad55

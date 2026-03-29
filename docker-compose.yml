@@ -1,6 +1,7 @@
 version: "3.9"
 
 services:
+<<<<<<< HEAD:monitoring/docker-compose.yml
   # Prometheus - Time-series metrics database
   prometheus: 
     image: prom/prometheus:latest
@@ -81,3 +82,30 @@ volumes:
 networks:
   costpilot_network:
     driver: bridge
+=======
+    prometheus: 
+        image: prom/prometheus
+        container_name: prometheus
+        volumes:
+        - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+        ports:
+             - "9090:9090"
+
+    node_exporter:
+        image: prom/node-exporter
+        container_name: node_exporter
+        ports:
+            - "9100:9100"
+
+    backend:
+        build: ./backend
+        container_name: backend
+        ports:
+            - "8000:8000"
+        depends_on:
+            - prometheus
+        volumes:
+            - ./database:/app/database
+            - ./rl_models:/app/app/rl/models
+            - ~/.kube:/root/.kube
+>>>>>>> 28ba8b2a917721cbe4d390a8c72af6b0b8c8ad55:docker-compose.yml
