@@ -1,59 +1,79 @@
 from fastapi import APIRouter, HTTPException
-from app.azure import vmss_ctrl, aci_ctrl, azure_cost
-from app.optimizer.azure_scaling_executor import azure_executor
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/azure", tags=["azure"])
 
 
-# ── Discovery ─────────────────────────────────────────────────────────────────
-
 @router.get("/vmss")
 def list_vmss():
-    """List all VM Scale Sets in the resource group."""
-    return vmss_ctrl.list_vmss()
+    try:
+        from app.azure import get_vmss_ctrl
+        return get_vmss_ctrl().list_vmss()
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
 
 @router.get("/vmss/{vmss_name}")
 def get_vmss(vmss_name: str):
-    return vmss_ctrl.get_vmss_info(vmss_name)
+    try:
+        from app.azure import get_vmss_ctrl
+        return get_vmss_ctrl().get_vmss_info(vmss_name)
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
 
 @router.get("/aci")
 def list_aci_groups():
-    """List all managed container groups."""
-    return aci_ctrl.list_groups()
+    try:
+        from app.azure import get_aci_ctrl
+        return get_aci_ctrl().list_groups()
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
 
 @router.get("/aci/info")
 def get_aci_info():
-    return aci_ctrl.get_info()
+    try:
+        from app.azure import get_aci_ctrl
+        return get_aci_ctrl().get_info()
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
 
-
-# ── Cost ──────────────────────────────────────────────────────────────────────
 
 @router.get("/cost/current-month")
 def current_month_cost():
-    """Real Azure spend from your student credits this month."""
-    return azure_cost.get_current_month_cost()
+    try:
+        from app.azure import get_azure_cost
+        return get_azure_cost().get_current_month_cost()
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
 
 @router.get("/cost/by-service")
 def cost_by_service(days: int = 7):
-    return azure_cost.get_cost_by_service(days)
+    try:
+        from app.azure import get_azure_cost
+        return get_azure_cost().get_cost_by_service(days)
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
 
-
-# ── Scaling actions ───────────────────────────────────────────────────────────
 
 class AzureScalingAction(BaseModel):
-    action: str          # scale_up | scale_down | terminate_idle | maintain
-    resource_type: str   # vmss | aci
+    action: str
+    resource_type: str
     target: dict = {}
     params: dict = {}
 
+
 @router.post("/scale")
 def execute_azure_scaling(body: AzureScalingAction):
-    """
-    Manual scaling endpoint — also used by the RL agent
-    when AZURE_MODE=true.
-    """
-    result = azure_executor.execute(body.dict())
-    if not result.get("success"):
-        raise HTTPException(status_code=500, detail=result.get("error"))
-    return result
+    try:
+        from app.optimizer.azure_scaling_executor import azure_executor
+        result = azure_executor.execute(body.dict())
+        if not result.get("success"):
+            raise HTTPException(status_code=500, detail=result.get("error"))
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))

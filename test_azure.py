@@ -13,41 +13,36 @@ os.environ.setdefault("AZURE_ACI_GROUP",       "nimbusopt-containers")
 
 from app.azure.azure_client import azure
 
-# Test 1: credentials
+
 try:
     rg = azure.resource().resource_groups.get("nimbusopt-rg")
-    print(f"✓ Azure credentials valid — resource group: {rg.name} ({rg.location})")
+    print(f"Azure credentials valid — resource group: {rg.name} ({rg.location})")
 except Exception as e:
-    print(f"✗ Credential check failed: {e}")
+    print(f"Credential check failed: {e}")
     exit(1)
-
-# Test 2: VMSS
 try:
     from app.azure.vmss_controller import VMSSController
     ctrl = VMSSController()
     vmss_list = ctrl.list_vmss()
-    print(f"✓ VMSS access OK — found {len(vmss_list)} scale set(s)")
+    print(f" VMSS access OK — found {len(vmss_list)} scale set(s)")
     for v in vmss_list:
         print(f"  - {v['name']} (capacity={v['capacity']}, size={v['vm_size']})")
 except Exception as e:
-    print(f"✗ VMSS access failed: {e}")
-
-# Test 3: ACI
+    print(f"VMSS access failed: {e}")
 try:
     from app.azure.aci_controller import ACIController
     ctrl = ACIController()
     groups = ctrl.list_groups()
-    print(f"✓ ACI access OK — found {len(groups)} container group(s)")
+    print(f" ACI access OK — found {len(groups)} container group(s)")
     for g in groups:
         print(f"  - {g['name']} ({g['state']})")
 except Exception as e:
-    print(f"✗ ACI access failed: {e}")
+    print(f"ACI access failed: {e}")
 
-# Test 4: Cost
 try:
     from app.azure.cost_controller import AzureCostController
     ctrl = AzureCostController()
     cost = ctrl.get_current_month_cost()
-    print(f"✓ Cost API OK — MTD spend: ${cost['amount']}")
+    print(f" Cost API OK — MTD spend: ${cost['amount']}")
 except Exception as e:
-    print(f"✗ Cost API failed: {e}")
+    print(f"Cost API failed: {e}")

@@ -1,0 +1,69 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+
+  html { color-scheme: dark; }
+
+  body {
+    @apply bg-bg text-text font-sans antialiased;
+    background-color: #080C14;
+  }
+
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #1A2540; border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: #2E4060; }
+}
+
+@layer components {
+  .card {
+    @apply bg-surface border border-surfaceBorder rounded-lg shadow-card;
+  }
+
+  .card-header {
+    @apply px-5 pt-5 pb-0 flex items-center justify-between mb-4;
+  }
+
+  .card-title {
+    @apply text-sm font-semibold text-text tracking-wide;
+  }
+
+  .card-body {
+    @apply px-5 pb-5;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 text-[10px] font-mono font-medium px-2 py-0.5 rounded border;
+  }
+
+  .badge-green  { @apply bg-greenDim text-green border-green/20; }
+  .badge-red    { @apply bg-redDim text-red border-red/20; }
+  .badge-amber  { @apply bg-amberDim text-amber border-amber/20; }
+  .badge-cyan   { @apply bg-cyanDim text-cyan border-cyan/20; }
+  .badge-purple { @apply bg-purpleDim text-purple border-purple/20; }
+
+  .stat-value {
+    @apply font-mono text-2xl font-semibold text-text tabular-nums;
+  }
+
+  .nav-item {
+    @apply w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-all duration-150 cursor-pointer select-none;
+  }
+
+  .nav-item-inactive {
+    @apply text-textMuted hover:text-text hover:bg-surfaceHigh;
+  }
+
+  .nav-item-active {
+    @apply text-cyan bg-cyanDim font-medium;
+  }
+
+  .dot-live {
+    @apply w-1.5 h-1.5 rounded-full bg-green animate-pulse-slow;
+  }
+}

@@ -5,6 +5,15 @@ from app.api.forecast import router as forecast_router
 from app.api.cost import router as cost_router
 from app.api.optimize import router as optimize_router
 #from app.api.cloud_cost import router as cost_router
+from app.api.rl import router as rl_router
+
+import logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s"
+)
+logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(logging.WARNING)
+logging.getLogger("azure.identity").setLevel(logging.WARNING)
 
 from app.api.aws import router as aws_router
 from app.api.azure import router as azure_router
@@ -25,6 +34,7 @@ app.include_router(optimize_router)
 #app.include_router(cost_router)
 app.include_router(aws_router) 
 app.include_router(azure_router)
+app.include_router(rl_router)
 
 @app.on_event("startup")
 def start_background_worker():

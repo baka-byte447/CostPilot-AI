@@ -1,5 +1,43 @@
 .env
 minikube-linux-amd64
-node_modules/
-dashboard/
+dashboard/node_modules/
 package-lock.json
+node_modules/
+.venv
+dist/
+build/
+.next/
+out/
+coverage/
+logs
+.log
+npm-debug.log
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.vscode/
+.idea/
+*.swp
+*.swo
+dashboard/dist/
+.env
+.env.*
+!*.env.example
+# Python
+__pycache__/
+*.pyc
+
+# Database
+*.db
+
+# ML models
+*.npy
+*.pkl
+
+# Frontend
+dashboard/node_modules/
+dashboard/dist/
+
+# Misc
+*.log
+.env

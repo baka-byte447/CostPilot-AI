@@ -1,11 +1,25 @@
-from .ec2_controller import EC2Controller
-from .ecs_controller import ECSController
-from .eks_controller import EKSController
-from .cost_explorer import CostExplorer
+import os
+import logging
 
+logger = logging.getLogger(__name__)
 
-ec2_ctrl = EC2Controller()
-ecs_ctrl =ECSController()
+# Use mock controllers — LocalStack free tier doesn't support
+# ECS, EKS, or AutoScaling. Mock provides identical API surface.
+from .mock_aws import (
+    MockEC2Controller,
+    MockECSController,
+    MockEKSController,
+    MockCostExplorer
+)
 
-eks-ctrl = EKSController()
-cost_explorer=CostExplorer()
+def get_ec2_ctrl():
+    return MockEC2Controller()
+
+def get_ecs_ctrl():
+    return MockECSController()
+
+def get_eks_ctrl():
+    return MockEKSController()
+
+def get_cost_explorer():
+    return MockCostExplorer()

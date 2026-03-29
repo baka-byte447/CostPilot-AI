@@ -1,26 +1,94 @@
 import schedule
 import time
+import logging
+import os
 from sqlalchemy.orm import Session
-
 from app.config.database import SessionLocal
 from app.services.metrics_service import collect_and_store_metrics
+
+logger = logging.getLogger(__name__)
+
+AWS_MODE   = os.getenv("AWS_MODE",   "false").lower() == "true"
+AZURE_MODE = os.getenv("AZURE_MODE", "false").lower() == "true"
+
+_last_explanation = None
+
+
+def get_last_explanation() -> dict:
+    return _last_explanation
+
+
+def run_rl_decision(metrics: dict):
+    global _last_explanation
+
+    try:
+        from app.rl.trainer import decide_scaling_with_rl
+        from app.optimizer.explainer import explain_decision
+
+        decision = decide_scaling_with_rl(
+            cpu=metrics["cpu_usage"],
+            memory=metrics["memory_usage"],
+            request_load=metrics["request_load"]
+        )
+
+        logger.info(
+            f"RL Decision: {decision['action']} | "
+            f"CPU={decision['cpu']}% | "
+            f"reward={decision['reward']} | "
+            f"ε={decision['epsilon']}"
+        )
+
+        explanation = explain_decision(decision)
+        _last_explanation = explanation
+        logger.info(f"Explanation [{explanation['source']}]: {explanation['explanation'][:80]}...")
+
+        if AZURE_MODE:
+            _dispatch_azure(decision)
+
+        return decision
+
+    except Exception as e:
+        logger.error(f"RL decision failed: {e}", exc_info=True)
+        return None
+
+
+def _dispatch_azure(decision: dict):
+    try:
+        from app.optimizer.azure_scaling_executor import azure_executor
+        azure_decision = {
+            "action": decision["action"],
+            "resource_type": "aci",
+            "target": {},
+            "params": {"increment": 1, "decrement": 1}
+        }
+        result = azure_executor.execute(azure_decision)
+        if result.get("success"):
+            logger.info(f"Azure action applied: {result.get('action')} on ACI")
+        else:
+            logger.warning(f"Azure action failed: {result.get('error')}")
+    except Exception as e:
+        logger.error(f"Azure dispatch failed: {e}")
+
 
 def job():
     db: Session = SessionLocal()
     try:
-        result = collect_and_store_metrics(db)
-        print("Collected metrics: ",result)
-
+        metrics = collect_and_store_metrics(db)
+        logger.info(
+            f"Metrics collected: CPU={metrics['cpu_usage']:.1f}% "
+            f"MEM={metrics['memory_usage']:.1f}% "
+            f"REQ={metrics['request_load']:.4f}"
+        )
+        run_rl_decision(metrics)
     except Exception as e:
-        print("Error collecting metrics: ",e)
-
+        logger.error(f"Collector job failed: {e}", exc_info=True)
     finally:
         db.close()
 
 
 def start_scheduler():
+    logger.info("Starting metrics collector + RL agent loop (10s interval)")
     schedule.every(10).seconds.do(job)
-    while(True):
+    while True:
         schedule.run_pending()
         time.sleep(1)
-

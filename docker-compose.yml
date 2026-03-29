@@ -20,9 +20,9 @@ services:
     image: localstack/localstack:3.0
     container_name: localstack
     ports:
-      - "4566:4566"
+     - "4566:4566"
     environment:
-      - SERVICES=ec2,ecs,eks,ce,autoscaling,cloudwatch,sts,iam
+      - SERVICES=s3,sqs,sts,iam
       - DEBUG=0
       - PERSISTENCE=1
     volumes:
@@ -41,6 +41,7 @@ services:
     env_file:
       - .env
     environment:
+      - GROQ_API_KEY=${GROQ_API_KEY}
       - AWS_MODE=true
       - AWS_ENDPOINT_URL=http://localstack:4566
       - AWS_DEFAULT_REGION=us-east-1
@@ -51,6 +52,13 @@ services:
       - AZURE_RESOURCE_GROUP=nimbusopt-rg
       - AZURE_VMSS_NAME=nimbusopt-vmss
       - AZURE_ACI_GROUP=nimbusopt-containers
+      - SLO_MAX_CPU=85
+      - SLO_MAX_MEMORY=90
+      - SLO_MAX_REQUESTS=2.0
+      - SLO_MIN_REPLICAS=1
+      - SLO_MAX_REPLICAS=8
+      - SLO_MAX_SCALE_STEP=2
+      - SLO_COOLDOWN_SECONDS=30
     ports:
       - "8000:8000"
     depends_on:
@@ -61,7 +69,6 @@ services:
     volumes:
       - ./database:/app/database
       - ./rl_models:/app/app/rl/models
-      - ~/.kube:/root/.kube
 
 volumes:
   localstack_data:
