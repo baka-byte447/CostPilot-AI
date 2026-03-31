@@ -1,5 +1,6 @@
 # Environments
 .env
+.env.*
 .venv
 venv/
 ENV/
@@ -30,6 +31,12 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+# Editors/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
 # AI Generated Docs (Ignored intentionally to maintain clean repo)
 deep-research-report.md
 .deep-research-report.md
@@ -37,10 +44,34 @@ setupmodule.md
 SETUP_MODULE1.md
 modukes.txt
 
+# Caches
+.pytest_cache/
+.mypy_cache/
+.cache/
+coverage/
+.coverage
+
+# Logs and runtime
+*.log
+*.pid
+
+# Monitoring data
+monitoring/prometheus_data/
+
+# RL artifacts
+rl_models/q_table.json
+rl_models/*.npy
+
+# Local DB copies
+backend/database/metrics.db
+database/metrics.db
+
+# Node/JS
+node_modules/
+
 # DB
 *.db
 *.sqlite3
-database/metrics.db
 
 # OS
 .DS_Store

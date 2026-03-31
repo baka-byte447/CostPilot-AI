@@ -1,47 +1,43 @@
 version: "3.9"
 
 services:
-<<<<<<< HEAD:monitoring/docker-compose.yml
-  # Prometheus - Time-series metrics database
-  prometheus: 
+  prometheus:
     image: prom/prometheus:latest
-    container_name: prometheus
+    container_name: costpilot-prometheus
     hostname: prometheus
     volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     ports:
       - "9090:9090"
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=30d'
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
     networks:
-      - costpilot_network
+      - costpilot
     restart: unless-stopped
 
-  # Node Exporter - Host system metrics (CPU, memory, disk, network)
   node_exporter:
     image: prom/node-exporter:latest
-    container_name: node_exporter
+    container_name: costpilot-node-exporter
     hostname: node_exporter
     ports:
       - "9100:9100"
     command:
-      - '--path.procfs=/host/proc'
-      - '--path.rootfs=/'
+      - "--path.procfs=/host/proc"
+      - "--path.rootfs=/"
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/rootfs:ro
     networks:
-      - costpilot_network
+      - costpilot
     restart: unless-stopped
 
-  # Backend Application
   backend:
-    build: ../backend
-    container_name: backend
+    build: ./backend
+    container_name: costpilot-backend
     hostname: backend
     ports:
       - "8000:8000"
@@ -51,16 +47,17 @@ services:
     depends_on:
       - prometheus
       - node_exporter
-    networks:
-      - costpilot_network
-    restart: unless-stopped
     volumes:
-      - ../backend:/app
+      - ./database:/database
+      - ./rl_models:/app/rl_models
+      - ~/.kube:/root/.kube
+    networks:
+      - costpilot
+    restart: unless-stopped
 
-  # Grafana - Visualization and dashboards (optional but recommended)
   grafana:
     image: grafana/grafana:latest
-    container_name: grafana
+    container_name: costpilot-grafana
     hostname: grafana
     ports:
       - "3000:3000"
@@ -72,7 +69,7 @@ services:
     depends_on:
       - prometheus
     networks:
-      - costpilot_network
+      - costpilot
     restart: unless-stopped
 
 volumes:
@@ -80,32 +77,5 @@ volumes:
   grafana_data:
 
 networks:
-  costpilot_network:
+  costpilot:
     driver: bridge
-=======
-    prometheus: 
-        image: prom/prometheus
-        container_name: prometheus
-        volumes:
-        - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-        ports:
-             - "9090:9090"
-
-    node_exporter:
-        image: prom/node-exporter
-        container_name: node_exporter
-        ports:
-            - "9100:9100"
-
-    backend:
-        build: ./backend
-        container_name: backend
-        ports:
-            - "8000:8000"
-        depends_on:
-            - prometheus
-        volumes:
-            - ./database:/app/database
-            - ./rl_models:/app/app/rl/models
-            - ~/.kube:/root/.kube
->>>>>>> 28ba8b2a917721cbe4d390a8c72af6b0b8c8ad55:docker-compose.yml

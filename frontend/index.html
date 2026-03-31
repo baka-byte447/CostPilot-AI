@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CostPilot Minimal Dashboard</title>
+  <style>
+    :root {
+      --bg: #f5f5f7;
+      --card: #ffffff;
+      --text: #1f2933;
+      --muted: #5b6670;
+      --accent: #0f766e;
+      --border: #d5d7db;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: 24px;
+      letter-spacing: 0.2px;
+    }
+    .wrap {
+      max-width: 960px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+    label {
+      font-size: 14px;
+      color: var(--muted);
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin-top: 6px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    button {
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #e7f4f2;
+      color: var(--accent);
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #d9eeeb;
+    }
+    pre {
+      background: #0b1021;
+      color: #e5e7eb;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      overflow: auto;
+      margin: 0;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .small {
+      font-size: 13px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>CostPilot Minimal Dashboard</h1>
+      <div class="small">Quick view of health and system metrics from the FastAPI backend.</div>
+    </header>
+
+    <section class="card">
+      <label for="base-url">Backend base URL</label>
+      <input id="base-url" value="http://localhost:8000" />
+      <div class="row" style="margin-top: 10px;">
+        <button id="btn-health">Check Health</button>
+        <button id="btn-metrics">Load System Metrics</button>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <div class="small" style="margin-bottom:6px;">Health</div>
+        <pre id="health-box">(no data)</pre>
+      </div>
+      <div class="card">
+        <div class="small" style="margin-bottom:6px;">Metrics summary</div>
+        <pre id="metrics-box">(no data)</pre>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="small" style="margin-bottom:6px;">Raw metrics JSON</div>
+      <pre id="raw-box">(no data)</pre>
+    </section>
+  </div>
+
+  <script>
+    const baseInput = document.getElementById("base-url");
+    const healthBox = document.getElementById("health-box");
+    const metricsBox = document.getElementById("metrics-box");
+    const rawBox = document.getElementById("raw-box");
+    const btnHealth = document.getElementById("btn-health");
+    const btnMetrics = document.getElementById("btn-metrics");
+
+    function buildUrl(path) {
+      const trimmed = baseInput.value.replace(/\/$/, "");
+      return trimmed + path;
+    }
+
+    async function fetchJson(path) {
+      const url = buildUrl(path);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      return res.json();
+    }
+
+    function show(target, data) {
+      target.textContent = JSON.stringify(data, null, 2);
+    }
+
+    function showError(target, err) {
+      target.textContent = `error: ${err.message || err}`;
+    }
+
+    async function loadHealth() {
+      try {
+        const data = await fetchJson("/health");
+        show(healthBox, data);
+      } catch (err) {
+        showError(healthBox, err);
+      }
+    }
+
+    async function loadMetrics() {
+      try {
+        const data = await fetchJson("/api/system-metrics");
+        const summary = data.summary || {};
+        show(metricsBox, summary);
+        show(rawBox, data);
+      } catch (err) {
+        showError(metricsBox, err);
+        showError(rawBox, err);
+      }
+    }
+
+    btnHealth.addEventListener("click", loadHealth);
+    btnMetrics.addEventListener("click", loadMetrics);
+
+    // basic auto-load on start
+    loadHealth();
+    loadMetrics();
+  </script>
+</body>
+</html>

@@ -1,13 +1,15 @@
 import json
-import os
 import random
+from pathlib import Path
+from typing import Union
 
-MODEL_PATH = "rl_models/q_table.json"
+
+DEFAULT_MODEL_PATH = Path(__file__).resolve().parents[3] / "rl_models" / "q_table.json"
 
 
 class QLearningAgent:
-    def __init__(self, model_path: str = MODEL_PATH):
-        self.model_path = model_path
+    def __init__(self, model_path: Union[str, Path] = DEFAULT_MODEL_PATH):
+        self.model_path = Path(model_path)
         self.action_space = [1, 2, 4]
         self.alpha = 0.25
         self.gamma = 0.85
@@ -15,16 +17,16 @@ class QLearningAgent:
         self.q_table = self._load_table()
 
     def _load_table(self):
-        if os.path.exists(self.model_path):
-            try:
+        try:
+            if self.model_path.exists():
                 with open(self.model_path, "r", encoding="utf-8") as f:
                     return json.load(f)
-            except Exception:
-                return {}
+        except Exception:
+            return {}
         return {}
 
     def _save_table(self):
-        os.makedirs(os.path.dirname(self.model_path), exist_ok=True)
+        self.model_path.parent.mkdir(parents=True, exist_ok=True)
         with open(self.model_path, "w", encoding="utf-8") as f:
             json.dump(self.q_table, f)
 
