@@ -12,25 +12,46 @@ The system combines local monitoring with time-series forecasting and reinforcem
 - **Forecasting Models**: Time-series models to predict resource utilization.
 - **Optimization Engine**: Reinforcement learning agent that generates optimal scaling actions to enforce workload requirements.
 
-## Running Locally
+## Quickstart (Docker Compose)
 
-1. **Install dependencies:**  
-   ```bash
-   cd backend
-   pip install -r requirements.txt
-   ```
+1) Prereqs: Docker Desktop (or Docker Engine) with Compose v2.
 
-2. **Start the monitoring services:**  
-   ```bash
-   cd monitoring
-   docker-compose up -d
-   ```
+2) Copy environment template (optional—defaults work):
+```bash
+cp .env.example .env
+```
 
-3. **Run the backend:**  
-   ```bash
-   cd backend
-   uvicorn app.main:app --reload
-   ```
+3) Start the full stack (Prometheus, Node Exporter, backend, Grafana):
+```bash
+docker compose up -d
+```
+
+4) Verify the backend is healthy:
+```bash
+curl http://localhost:8000/health
+```
+
+5) Open the built-in dashboards:
+- FastAPI docs: http://localhost:8000/docs
+- Prometheus: http://localhost:9090
+- Grafana: http://localhost:3000 (admin / admin)
+- Minimal HTML dashboard: open frontend/index.html locally and point it to http://localhost:8000
+
+Notes:
+- The SQLite database lives in the mounted ./database directory; data persists across restarts.
+- The RL model artifacts are mounted from ./rl_models.
+- Kubernetes scaling calls require access to a kubeconfig on the host; otherwise those endpoints will fail gracefully.
+
+## Local Development (without Docker)
+
+```bash
+cd backend
+python -m venv .venv && source .venv/bin/activate  # or .venv\Scripts\activate on Windows
+pip install -r requirements.txt
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Prometheus and Grafana are only brought up via Docker; for local-only dev, you can point `PROMETHEUS_URL` to a running instance or accept zeros from the mocked collectors.
 
 ## Infrastructure Control
 
