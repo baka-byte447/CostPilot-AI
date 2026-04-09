@@ -88,6 +88,14 @@
       font-size: 13px;
       color: var(--muted);
     }
+    .status {
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .status strong {
+      color: var(--text);
+    }
   </style>
 </head>
 <body>
@@ -103,7 +111,9 @@
       <div class="row" style="margin-top: 10px;">
         <button id="btn-health">Check Health</button>
         <button id="btn-metrics">Load System Metrics</button>
+        <button id="btn-refresh">Refresh All</button>
       </div>
+      <div id="status-line" class="status">Ready.</div>
     </section>
 
     <section class="grid">
@@ -130,15 +140,41 @@
     const rawBox = document.getElementById("raw-box");
     const btnHealth = document.getElementById("btn-health");
     const btnMetrics = document.getElementById("btn-metrics");
+    const btnRefresh = document.getElementById("btn-refresh");
+    const statusLine = document.getElementById("status-line");
+    const STORAGE_KEY = "costpilot.baseUrl";
+
+    // Persist backend URL so the dashboard remembers local/dev environments.
+    const savedBase = localStorage.getItem(STORAGE_KEY);
+    if (savedBase) {
+      baseInput.value = savedBase;
+    }
+    baseInput.addEventListener("change", () => {
+      localStorage.setItem(STORAGE_KEY, baseInput.value.trim());
+    });
+
+    function setStatus(message) {
+      statusLine.textContent = message;
+    }
+
+    function setButtonsDisabled(disabled) {
+      btnHealth.disabled = disabled;
+      btnMetrics.disabled = disabled;
+      btnRefresh.disabled = disabled;
+    }
 
     function buildUrl(path) {
-      const trimmed = baseInput.value.replace(/\/$/, "");
+      const trimmed = baseInput.value.trim().replace(/\/$/, "");
       return trimmed + path;
     }
 
     async function fetchJson(path) {
       const url = buildUrl(path);
-      const res = await fetch(url);
+      const res = await fetch(url, {
+        headers: {
+          "Accept": "application/json"
+        }
+      });
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
       return res.json();
     }
@@ -149,6 +185,24 @@
 
     function showError(target, err) {
       target.textContent = `error: ${err.message || err}`;
+    }
+
+    function toNumber(value) {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function buildMetricsView(summary) {
+      const cpu = toNumber(summary.avg_cpu_percent);
+      const mem = toNumber(summary.avg_memory_percent);
+      const req = toNumber(summary.total_requests);
+
+      return {
+        cpu_utilization: cpu !== null ? `${cpu.toFixed(2)}%` : "n/a",
+        memory_utilization: mem !== null ? `${mem.toFixed(2)}%` : "n/a",
+        total_requests: req !== null ? Math.round(req) : "n/a",
+        sample_count: toNumber(summary.sample_count) ?? "n/a"
+      };
     }
 
     async function loadHealth() {
@@ -164,7 +218,7 @@
       try {
         const data = await fetchJson("/api/system-metrics");
         const summary = data.summary || {};
-        show(metricsBox, summary);
+        show(metricsBox, buildMetricsView(summary));
         show(rawBox, data);
       } catch (err) {
         showError(metricsBox, err);
@@ -172,12 +226,40 @@
       }
     }
 
+    async function refreshAll() {
+      const base = baseInput.value.trim();
+      if (!base) {
+        setStatus("Enter a backend URL before requesting data.");
+        return;
+      }
+
+      localStorage.setItem(STORAGE_KEY, base);
+      setButtonsDisabled(true);
+      setStatus(`Fetching data from ${base}...`);
+
+      const start = performance.now();
+      try {
+        await Promise.all([loadHealth(), loadMetrics()]);
+        const elapsed = performance.now() - start;
+        setStatus(`Updated successfully in ${elapsed.toFixed(0)}ms.`);
+      } catch (err) {
+        setStatus(`Refresh failed: ${err.message || err}`);
+      } finally {
+        setButtonsDisabled(false);
+      }
+    }
+
     btnHealth.addEventListener("click", loadHealth);
     btnMetrics.addEventListener("click", loadMetrics);
+    btnRefresh.addEventListener("click", refreshAll);
+    baseInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        refreshAll();
+      }
+    });
 
     // basic auto-load on start
-    loadHealth();
-    loadMetrics();
+    refreshAll();
   </script>
 </body>
 </html>
