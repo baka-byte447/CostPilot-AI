@@ -35,3 +35,4 @@ class AzureClientManager:
     def resource(self) -> ResourceManagementClient:
         return ResourceManagementClient(self.credential, self.subscription_id)
 azure = AzureClientManager()
+

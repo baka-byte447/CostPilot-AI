@@ -99,13 +99,11 @@ def execute_scaling(body: ScalingAction):
 
 @router.get("/actions/log")
 def get_actions_log():
-    """Returns recent scaling actions taken by the RL agent."""
     from app.aws.mock_aws import get_actions_log
     return get_actions_log()
 
 @router.get("/state")
 def get_full_state():
-    """Returns full current state of all mock AWS resources."""
     from app.aws.mock_aws import _state
     return {
         "asgs": list(_state["asgs"].values()),

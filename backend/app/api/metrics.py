@@ -6,7 +6,6 @@ from app.services.metrics_service import collect_and_store_metrics, get_all_metr
 router = APIRouter()
 
 
-
 def get_db():
     db = SessionLocal()
     try:

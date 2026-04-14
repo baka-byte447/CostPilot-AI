@@ -5,11 +5,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class AWSClientManager:
-    """
-    boto3 session manager.
-    If AWS_ENDPOINT_URL is set (LocalStack), all clients point there.
-    If not set, clients point to real AWS — flip by changing the env var.
-    """
     def __init__(self):
         self.region = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
         self.endpoint_url = os.getenv("AWS_ENDPOINT_URL", None)
@@ -21,11 +16,6 @@ class AWSClientManager:
         )
 
     def _client(self, service: str, region: str = None):
-        """
-        Creates a boto3 client.
-        endpoint_url=None → real AWS
-        endpoint_url=http://localstack:4566 → LocalStack
-        """
         return self.session.client(
             service,
             region_name=region or self.region,
@@ -38,11 +28,9 @@ class AWSClientManager:
     def eks(self):         return self._client("eks")
     def cloudwatch(self):  return self._client("cloudwatch")
     def sts(self):         return self._client("sts")
-
     def cost_explorer(self):
-        # Cost Explorer is always us-east-1
-        # LocalStack also handles it on the same endpoint
         return self._client("ce", region="us-east-1")
 
-
 aws = AWSClientManager()
+
+

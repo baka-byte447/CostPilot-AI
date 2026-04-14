@@ -5,19 +5,9 @@ from .aws_client import aws
 
 logger = logging.getLogger(__name__)
 
-
 class CostExplorer:
-    """
-    Pulls real cost data from AWS Cost Explorer API.
-    Use this to feed actual spend numbers into the RL reward function
-    instead of estimated costs.
-    """
 
     def get_daily_cost(self, days: int = 7) -> list:
-        """
-        Returns daily cost breakdown for the last N days.
-        Grouped by service so you can see EC2 vs ECS vs EKS spend.
-        """
         end = datetime.utcnow().date()
         start = end - timedelta(days=days)
 
@@ -28,8 +18,7 @@ class CostExplorer:
             },
             Granularity="DAILY",
             Metrics=["UnblendedCost"],
-            GroupBy=[{"Type": "DIMENSION", "Key": "SERVICE"}]
-        )
+            GroupBy=[{"Type": "DIMENSION", "Key": "SERVICE"}])
 
         results = []
         for period in resp.get("ResultsByTime", []):
@@ -42,14 +31,14 @@ class CostExplorer:
                 service = group["Keys"][0]
                 amount = float(group["Metrics"]["UnblendedCost"]["Amount"])
                 day["by_service"][service] = round(amount, 4)
-                day["total"] += amount
-            day["total"] = round(day["total"], 4)
+                day["total"]+= amount
+            day["total"]=round(day["total"], 4)
             results.append(day)
 
         return results
 
     def get_current_month_cost(self) -> dict:
-        """Returns total spend so far this calendar month."""
+
         now = datetime.utcnow().date()
         start = now.replace(day=1)
 
@@ -75,7 +64,6 @@ class CostExplorer:
         }
 
     def get_cost_forecast(self, days_ahead: int = 30) -> dict:
-        """Uses AWS's own ML forecast for end-of-month projected spend."""
         now = datetime.utcnow().date()
         end = now + timedelta(days=days_ahead)
 
@@ -93,5 +81,7 @@ class CostExplorer:
             "forecast_amount": round(float(total.get("Amount", 0)), 2),
             "currency": total.get("Unit", "USD"),
             "forecast_days": days_ahead
-        }
-    
+}
+
+
+

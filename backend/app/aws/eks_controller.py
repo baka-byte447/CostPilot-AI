@@ -2,17 +2,9 @@ import logging
 from .aws_client import aws
 
 logger = logging.getLogger(__name__)
-
-
 class EKSController:
-    """
-    Controls EKS managed node groups.
-    Node groups are the AWS equivalent of your local Docker Desktop
-    Kubernetes nodes — except they're real EC2s managed by EKS.
-    """
 
     def get_nodegroup_info(self, cluster: str, nodegroup: str) -> dict:
-        """Returns current scaling config of an EKS node group."""
         resp = aws.eks().describe_nodegroup(
             clusterName=cluster,
             nodegroupName=nodegroup
@@ -30,10 +22,6 @@ class EKSController:
         }
 
     def set_desired_size(self, cluster: str, nodegroup: str, desired: int) -> dict:
-        """
-        Scale a node group to a specific size.
-        EKS will add or remove EC2 nodes and reschedule pods automatically.
-        """
         info = self.get_nodegroup_info(cluster, nodegroup)
         desired = max(info["min"], min(info["max"], desired))
 
@@ -64,7 +52,6 @@ class EKSController:
         return self.set_desired_size(cluster, nodegroup, info["desired"] - decrement)
 
     def list_nodegroups(self, cluster: str) -> list:
-        """List all node groups in an EKS cluster."""
         resp = aws.eks().list_nodegroups(clusterName=cluster)
         nodegroups = []
         for ng_name in resp.get("nodegroups", []):

@@ -1,8 +1,4 @@
-"""
-Seed script — creates fake AWS resources in LocalStack.
-Run once after LocalStack starts:
-    python -m app.aws.seed_localstack
-"""
+
 import boto3
 import os
 import json
@@ -27,12 +23,8 @@ def client(service):
 
 def seed_ecs():
     ecs = client("ecs")
-
-    # Create cluster
     ecs.create_cluster(clusterName="nimbusopt-cluster")
-    log.info("✓ ECS cluster created: nimbusopt-cluster")
-
-    # Register a minimal task definition
+    log.info(" ECS cluster created: nimbusopt-cluster")
     ecs.register_task_definition(
         family="nimbusopt-task",
         networkMode="bridge",
@@ -48,7 +40,7 @@ def seed_ecs():
         cpu="256",
         memory="512"
     )
-    log.info("✓ ECS task definition registered: nimbusopt-task")
+    log.info(" ECS task definition registered: nimbusopt-task")
 
     # Create service
     ecs.create_service(
@@ -58,25 +50,23 @@ def seed_ecs():
         desiredCount=2,
         launchType="EC2"
     )
-    log.info("✓ ECS service created: nimbusopt-service (desired=2)")
+    log.info(" ECS service created: nimbusopt-service (desired=2)")
 
 
 def seed_ec2_asg():
     ec2 = client("ec2")
     asg = client("autoscaling")
 
-    # Create a launch template (required by ASG)
     lt = ec2.create_launch_template(
         LaunchTemplateName="nimbusopt-lt",
         LaunchTemplateData={
-            "ImageId": "ami-0abcdef1234567890",  # fake AMI — LocalStack accepts any
+            "ImageId": "ami-0abcdef1234567890",
             "InstanceType": "t3.micro",
         }
     )
     lt_id = lt["LaunchTemplate"]["LaunchTemplateId"]
-    log.info(f"✓ Launch template created: {lt_id}")
+    log.info(f" Launch template created: {lt_id}")
 
-    # Create Auto Scaling Group
     asg.create_auto_scaling_group(
         AutoScalingGroupName="nimbusopt-asg",
         LaunchTemplate={"LaunchTemplateId": lt_id, "Version": "$Latest"},
@@ -85,56 +75,49 @@ def seed_ec2_asg():
         DesiredCapacity=2,
         AvailabilityZones=["us-east-1a"]
     )
-    log.info("✓ ASG created: nimbusopt-asg (desired=2, min=1, max=6)")
+    log.info(" ASG created: nimbusopt-asg (desired=2, min=1, max=6)")
 
 
 def seed_eks():
     eks = client("eks")
 
-    # Create EKS cluster
     eks.create_cluster(
         name="nimbusopt-eks",
         version="1.28",
-        roleArn="arn:aws:iam::000000000000:role/eks-role",  # fake — LocalStack accepts any
+        roleArn="arn:aws:iam::000000000000:role/eks-role", ####
         resourcesVpcConfig={
             "subnetIds": ["subnet-12345"],
             "securityGroupIds": ["sg-12345"]
         }
     )
-    log.info("✓ EKS cluster created: nimbusopt-eks")
+    log.info(" EKS cluster created: nimbusopt-eks")
 
-    # Create node group
     eks.create_nodegroup(
         clusterName="nimbusopt-eks",
         nodegroupName="nimbusopt-nodegroup",
         scalingConfig={"minSize": 1, "maxSize": 5, "desiredSize": 2},
         subnets=["subnet-12345"],
-        nodeRole="arn:aws:iam::000000000000:role/node-role",  # fake
+        nodeRole="arn:aws:iam::000000000000:role/node-role",  #fake
         instanceTypes=["t3.medium"]
     )
-    log.info("✓ EKS nodegroup created: nimbusopt-nodegroup (desired=2)")
+    log.info("EKS nodegroup created: nimbusopt-nodegroup (desired=2)")
 
 
 def seed_cloudwatch():
-    """
-    Put some fake CPU metric data so the terminate_idle_instances
-    function has CloudWatch data to read.
-    """
     cw = client("cloudwatch")
     from datetime import datetime, timezone, timedelta
 
-    # Seed CPU metrics for a fake instance
     cw.put_metric_data(
         Namespace="AWS/EC2",
         MetricData=[{
             "MetricName": "CPUUtilization",
             "Dimensions": [{"Name": "InstanceId", "Value": "i-localstack001"}],
             "Timestamp": datetime.now(timezone.utc) - timedelta(minutes=5),
-            "Value": 3.2,   # low CPU → qualifies as idle
+            "Value": 3.2,
             "Unit": "Percent"
         }]
     )
-    log.info("✓ CloudWatch CPU metric seeded for i-localstack001 (3.2% — idle)")
+    log.info("CloudWatch CPU metric seeded for i-localstack001 (3.2% — idle)")
 
 
 if __name__ == "__main__":
@@ -144,7 +127,7 @@ if __name__ == "__main__":
         seed_ec2_asg()
         seed_eks()
         seed_cloudwatch()
-        log.info("\n✓ All resources seeded successfully.")
+        log.info("\nAll resources seeded successfully.")
         log.info("  ECS  → cluster: nimbusopt-cluster  service: nimbusopt-service")
         log.info("  EC2  → asg: nimbusopt-asg")
         log.info("  EKS  → cluster: nimbusopt-eks  nodegroup: nimbusopt-nodegroup")

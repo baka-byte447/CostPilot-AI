@@ -47,7 +47,7 @@ services:
       - AWS_DEFAULT_REGION=us-east-1
       - AWS_ACCESS_KEY_ID=test
       - AWS_SECRET_ACCESS_KEY=test
-      - AZURE_MODE=true
+      - AZURE_MODE=false
       - AZURE_LOCATION=centralindia
       - AZURE_RESOURCE_GROUP=nimbusopt-rg
       - AZURE_VMSS_NAME=nimbusopt-vmss

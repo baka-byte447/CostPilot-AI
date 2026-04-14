@@ -1,12 +1,6 @@
-"""
-In-memory mock for AWS ECS, EKS, and AutoScaling.
-Used when LocalStack free tier doesn't support these services.
-Stores state in memory — resets on container restart.
-"""
+
 import time
 from datetime import datetime
-
-# ── In-memory state ───────────────────────────────────────────────────────────
 
 _state = {
     "asgs": {
@@ -46,10 +40,6 @@ _state = {
     },
     "actions_log": []
 }
-
-
-# ── ASG Mock ──────────────────────────────────────────────────────────────────
-
 class MockEC2Controller:
 
     def get_asg_info(self, asg_name: str) -> dict:
@@ -83,7 +73,6 @@ class MockEC2Controller:
     def terminate_idle_instances(self, asg_name: str,
                                   cpu_threshold: float = 5.0) -> dict:
         info = self.get_asg_info(asg_name)
-        # Simulate terminating 1 idle instance
         if info["instances"] > info["min"]:
             self.scale_down(asg_name, 1)
             return {"action": "terminate_idle", "asg": asg_name,
@@ -100,7 +89,6 @@ class MockEC2Controller:
         return list(_state["asgs"].values())
 
 
-# ── ECS Mock ──────────────────────────────────────────────────────────────────
 
 class MockECSController:
 
@@ -144,10 +132,6 @@ class MockECSController:
 
     def list_clusters(self) -> list:
         return list(_state["ecs_clusters"].keys())
-
-
-# ── EKS Mock ──────────────────────────────────────────────────────────────────
-
 class MockEKSController:
 
     def get_nodegroup_info(self, cluster: str, nodegroup: str) -> dict:
@@ -189,10 +173,6 @@ class MockEKSController:
 
     def list_clusters(self) -> list:
         return list(_state["eks_clusters"].keys())
-
-
-# ── Cost Mock ─────────────────────────────────────────────────────────────────
-
 class MockCostExplorer:
 
     def get_current_month_cost(self) -> dict:
@@ -230,9 +210,6 @@ class MockCostExplorer:
             "forecast_days": days_ahead
         }
 
-
-# ── Action log (visible in API) ───────────────────────────────────────────────
-
 def _log_action(resource_type, action, target, previous, new):
     _state["actions_log"].append({
         "timestamp": datetime.utcnow().isoformat(),
@@ -242,7 +219,7 @@ def _log_action(resource_type, action, target, previous, new):
         "previous": previous,
         "new": new
     })
-    # Keep only last 50 actions
+    # Keeplast 50
     if len(_state["actions_log"]) > 50:
         _state["actions_log"].pop(0)
 

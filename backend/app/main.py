@@ -24,7 +24,16 @@ from fastapi.responses import Response
 from app.utils.prometheus_metrics import REQUEST_COUNTER
 from threading import Thread
 from app.workers.metrics_collector import start_scheduler
+from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 Base.metadata.create_all(bind=engine)
 app.include_router(metrics_router)

@@ -2,17 +2,9 @@ import logging
 from .aws_client import aws
 
 logger = logging.getLogger(__name__)
-
-
 class ECSController:
-    """
-    Controls ECS service scaling on behalf of the RL agent.
-    Each ECS 'service' is like a deployment — it has a desired
-    task count that we increase or decrease.
-    """
 
     def get_service_info(self, cluster: str, service: str) -> dict:
-        """Returns current state of an ECS service."""
         resp = aws.ecs().describe_services(
             cluster=cluster,
             services=[service]
@@ -31,13 +23,7 @@ class ECSController:
         }
 
     def set_desired_count(self, cluster: str, service: str, desired: int) -> dict:
-        """
-        Core action: update the desired task count of an ECS service.
-        ECS will launch or drain tasks to reach this count.
-        """
         info = self.get_service_info(cluster, service)
-
-        # Protect against scaling to zero accidentally
         desired = max(1, desired)
 
         if desired == info["desired"]:
@@ -67,7 +53,6 @@ class ECSController:
         return self.set_desired_count(cluster, service, info["desired"] - decrement)
 
     def list_services(self, cluster: str) -> list:
-        """List all services in an ECS cluster with their current counts."""
         resp = aws.ecs().list_services(cluster=cluster)
         arns = resp.get("serviceArns", [])
         if not arns:
@@ -84,6 +69,7 @@ class ECSController:
         ]
 
     def list_clusters(self) -> list:
-        """List all ECS cluster names in the region."""
         resp = aws.ecs().list_clusters()
         return resp.get("clusterArns", [])
+    
+    
