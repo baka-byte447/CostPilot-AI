@@ -4,19 +4,30 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-from pydantic import BaseSettings, Field
+from pydantic import Field
+
+try:
+	from pydantic_settings import BaseSettings, SettingsConfigDict
+	USING_PYDANTIC_V2 = True
+except ImportError:  # pragma: no cover - compatibility fallback
+	from pydantic import BaseSettings
+	USING_PYDANTIC_V2 = False
 
 
 class Settings(BaseSettings):
 	app_name: str = Field("costpilot-backend", description="Display name for the backend service")
 	database_url: str = Field("sqlite:///../database/metrics.db", description="SQLAlchemy database URL")
 	prometheus_url: str = Field("http://prometheus:9090", description="Base URL for Prometheus queries")
+	cors_origins: str = Field("*", description="Comma-separated list of allowed CORS origins")
 	prometheus_export_port: int = Field(8001, description="Port for the internal Prometheus exporter")
 	kube_config_path: Optional[str] = Field(None, description="Optional path to a kubeconfig file")
 
-	class Config:
-		env_file = ".env"
-		env_file_encoding = "utf-8"
+	if USING_PYDANTIC_V2:
+		model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+	else:
+		class Config:
+			env_file = ".env"
+			env_file_encoding = "utf-8"
 
 	@property
 	def resolved_database_url(self) -> str:

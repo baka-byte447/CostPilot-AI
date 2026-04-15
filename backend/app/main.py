@@ -10,6 +10,7 @@ from threading import Thread
 from typing import Optional
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
@@ -17,10 +18,11 @@ from app.api.cost import router as cost_router
 from app.api.forecast import router as forecast_router
 from app.api.metrics import router as metrics_router
 from app.api.optimize import router as optimize_router
-from app.config.database import Base, engine
+from app.config.database import Base, SessionLocal, engine
 from app.config.settings import settings
+from app.models.metrics_model import Metrics
 from app.telemetry import MetricsCollector, get_collector, initialize_collector
-from app.workers.metrics_collector import start_scheduler
+from app.workers.metrics_collector import get_scheduler_state, start_scheduler
 
 
 logging.basicConfig(
@@ -60,6 +62,18 @@ app = FastAPI(
     description="Automated Cloud Cost Intelligence & Optimization",
     version="1.0.0",
     lifespan=lifespan,
+)
+
+allowed_origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
+if not allowed_origins:
+    allowed_origins = ["*"]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -122,6 +136,59 @@ async def get_system_metrics():
     return metrics_data
 
 
+@app.get("/api/dashboard/status")
+async def dashboard_status():
+    """Expose backend readiness for dashboard and service tracking views."""
+    collector = get_collector()
+    scheduler_state = get_scheduler_state()
+    scheduler_running = bool(scheduler_thread and scheduler_thread.is_alive())
+
+    metrics_count = 0
+    latest_metric = None
+    db_error = None
+
+    db = SessionLocal()
+    try:
+        metrics_count = db.query(Metrics).count()
+        latest = db.query(Metrics).order_by(Metrics.timestamp.desc()).first()
+        if latest:
+            latest_metric = {
+                "cpu_usage": latest.cpu_usage,
+                "memory_usage": latest.memory_usage,
+                "request_load": latest.request_load,
+                "timestamp": latest.timestamp.isoformat() if latest.timestamp else None,
+            }
+    except Exception as exc:  # pragma: no cover - defensive
+        db_error = str(exc)
+        logger.warning("Unable to query metrics status: %s", exc)
+    finally:
+        db.close()
+
+    warmup_required = 20
+    warmup_remaining = max(0, warmup_required - metrics_count)
+
+    return {
+        "service": settings.app_name,
+        "version": app.version,
+        "components": {
+            "collector_initialized": collector is not None,
+            "scheduler_running": scheduler_running,
+            "database_accessible": db_error is None,
+            "forecast_ready": metrics_count >= warmup_required,
+        },
+        "metrics": {
+            "stored_samples": metrics_count,
+            "warmup_required": warmup_required,
+            "warmup_remaining": warmup_remaining,
+            "latest_sample": latest_metric,
+        },
+        "scheduler": scheduler_state,
+        "errors": {
+            "database": db_error,
+        },
+    }
+
+
 @app.get("/")
 async def root():
     """Entry endpoint that lists the major API surfaces."""
@@ -133,10 +200,12 @@ async def root():
             "health": "/health",
             "metrics_prometheus": "/metrics",
             "metrics_json": "/api/system-metrics",
+            "dashboard_status": "/api/dashboard/status",
             "metrics_api": "/api/metrics",
             "forecast": "/api/forecast/system",
             "cost": "/api/cost/forecast",
             "optimize": "/api/optimize/scale",
+            "optimize_preview": "/api/optimize/preview",
             "docs": "/docs",
             "redoc": "/redoc",
         },
