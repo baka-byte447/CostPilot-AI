@@ -1,0 +1,22 @@
+import os
+import logging
+
+logger = logging.getLogger(__name__)
+
+from .mock_aws import (
+    MockEC2Controller,
+    MockECSController,
+    MockEKSController,
+    MockCostExplorer)
+
+def get_ec2_ctrl():
+    return MockEC2Controller()
+
+def get_ecs_ctrl():
+    return MockECSController()
+
+def get_eks_ctrl():
+    return MockEKSController()
+
+def get_cost_explorer():
+    return MockCostExplorer()
