@@ -1,71 +1,12 @@
-# Prometheus Configuration for CostPilot-AI
-# Scrapes metrics from various sources: backend, node exporter, cAdvisor
-
 global:
-  scrape_interval: 15s           # Default scrape interval
-  evaluation_interval: 15s       # How often to evaluate rules
-  external_labels:
-    monitor: 'costpilot-ai'
-
-# Alertmanager config (optional, for later)
-# alerting:
-#   alertmanagers:
-#     - static_configs:
-#         - targets: []
-
-# Load rules once and periodically evaluate them
-# rule_files:
-#   - "alert_rules.yml"
+  scrape_interval: 5s
 
 scrape_configs:
-  # Prometheus itself metrics
-  - job_name: 'prometheus'
+  - job_name: "node"
     static_configs:
-      - targets: ['prometheus:9090']
-        labels:
-          group: 'monitoring'
-
-  # Node Exporter - Host system metrics (CPU, memory, disk, network)
-  - job_name: 'node_exporter'
-    scrape_interval: 15s
-    scrape_timeout: 10s
+    - targets: ["node_exporter:9100"]
+  
+  - job_name: "backend_app"
     static_configs:
-      - targets: ['node_exporter:9100']
-        labels:
-          group: 'infrastructure'
-          type: 'host'
-
-  # Backend Application Metrics
-  - job_name: 'backend'
-    scrape_interval: 10s
-    scrape_timeout: 5s
-    static_configs:
-      - targets: ['backend:8000']
-        labels:
-          group: 'application'
-          service: 'costpilot-backend'
-    metrics_path: '/metrics'
-    relabel_configs:
-      - source_labels: [__address__]
-        target_label: instance
-
-  # (Optional) Container metrics via cAdvisor - if using Docker
-  # - job_name: 'cadvisor'
-  #   scrape_interval: 15s
-  #   static_configs:
-  #     - targets: ['cadvisor:8080']
-  #       labels:
-  #         group: 'containers'
-
-  # (Optional) Kubernetes metrics - if using K8s
-  # - job_name: 'kubernetes-pods'
-  #   kubernetes_sd_configs:
-  #     - role: pod
-
-  # (Optional) AWS CloudWatch exporter - if using AWS
-  # - job_name: 'cloudwatch'
-  #   static_configs:
-  #     - targets: ['localhost:9106']
-  #       labels:
-  #         group: 'cloud'
-  #         provider: 'aws'
+      - targets: ["backend:8000"]
+    metrics_path: /app_metrics

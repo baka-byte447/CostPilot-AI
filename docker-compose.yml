@@ -1,81 +1,28 @@
 version: "3.9"
 
 services:
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: costpilot-prometheus
-    hostname: prometheus
-    volumes:
-      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
-    ports:
-      - "9090:9090"
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.path=/prometheus"
-      - "--storage.tsdb.retention.time=30d"
-    networks:
-      - costpilot
-    restart: unless-stopped
+    prometheus: 
+        image: prom/prometheus
+        container_name: prometheus
+        volumes:
+        - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+        ports:
+             - "9090:9090"
 
-  node_exporter:
-    image: prom/node-exporter:latest
-    container_name: costpilot-node-exporter
-    hostname: node_exporter
-    ports:
-      - "9100:9100"
-    command:
-      - "--path.procfs=/host/proc"
-      - "--path.rootfs=/"
-    volumes:
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - /:/rootfs:ro
-    networks:
-      - costpilot
-    restart: unless-stopped
+    node_exporter:
+        image: prom/node-exporter
+        container_name: node_exporter
+        ports:
+            - "9100:9100"
 
-  backend:
-    build: ./backend
-    container_name: costpilot-backend
-    hostname: backend
-    ports:
-      - "8000:8000"
-    environment:
-      - PYTHONUNBUFFERED=1
-      - PROMETHEUS_URL=http://prometheus:9090
-    depends_on:
-      - prometheus
-      - node_exporter
-    volumes:
-      - ./database:/database
-      - ./rl_models:/app/rl_models
-      - ~/.kube:/root/.kube
-    networks:
-      - costpilot
-    restart: unless-stopped
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: costpilot-grafana
-    hostname: grafana
-    ports:
-      - "3000:3000"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_SECURITY_ADMIN_USER=admin
-    volumes:
-      - grafana_data:/var/lib/grafana
-    depends_on:
-      - prometheus
-    networks:
-      - costpilot
-    restart: unless-stopped
-
-volumes:
-  prometheus_data:
-  grafana_data:
-
-networks:
-  costpilot:
-    driver: bridge
+    backend:
+        build: ./backend
+        container_name: backend
+        ports:
+            - "8000:8000"
+        depends_on:
+            - prometheus
+        volumes:
+            - ./database:/app/database
+            - ./rl_models:/app/app/rl/models
+            - ~/.kube:/root/.kube

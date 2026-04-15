@@ -1,11 +1,9 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-
 from app.config.database import SessionLocal
 from app.cost.cost_forecast import forecast_cost
 
-router = APIRouter(prefix="/cost", tags=["cost"])
-
+router = APIRouter()
 
 def get_db():
     db = SessionLocal()
@@ -14,7 +12,6 @@ def get_db():
     finally:
         db.close()
 
-
-@router.get("/forecast", summary="Estimate required instances and hourly cost")
+@router.get("/forecast/cost")
 def cost_prediction(db: Session = Depends(get_db)):
     return forecast_cost(db)

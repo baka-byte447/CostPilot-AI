@@ -1,11 +1,9 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy import  create_engine
+from sqlalchemy.orm import sessionmaker, declarative_base
 
-from app.config.settings import settings
+DATABASE_URI = "sqlite:///./database/metrics.db"
 
-
-database_uri = settings.resolved_database_url
-engine = create_engine(database_uri, connect_args={"check_same_thread": False})
+engine = create_engine(DATABASE_URI,connect_args={"check_same_thread":False})
 
 SessionLocal = sessionmaker(bind=engine)
-Base = declarative_base()
+Base= declarative_base()

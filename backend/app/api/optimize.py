@@ -2,11 +2,10 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.config.database import SessionLocal
-from app.k8s.k8s_controller import scale_deployment
 from app.optimizer.scaling_decision import decide_scaling
+from app.k8s.k8s_controller import scale_deployment
 
-router = APIRouter(prefix="/optimize", tags=["optimize"])
-
+router = APIRouter()
 
 def get_db():
     db = SessionLocal()
@@ -15,18 +14,17 @@ def get_db():
     finally:
         db.close()
 
-
-@router.post("/scale", summary="Choose replica count via RL and apply to Kubernetes")
+@router.post("/optimize/scale")
 def optimize_cluster(db: Session = Depends(get_db)):
+
     replicas = decide_scaling(db)
     result = scale_deployment(
         deployment_name="load-test-app",
         namespace="default",
-        replicas=replicas,
+        replicas=replicas
     )
 
     return result
-
 
 
 
