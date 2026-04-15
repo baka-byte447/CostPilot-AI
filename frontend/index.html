@@ -3,188 +3,645 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CostPilot Minimal Dashboard</title>
+  <title>CostPilot Service Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg: #f5f5f7;
-      --card: #ffffff;
-      --text: #1f2933;
-      --muted: #5b6670;
+      --bg: #f4f6f8;
+      --bg-layer: radial-gradient(circle at 12% 8%, rgba(250, 204, 21, 0.2), transparent 38%),
+                  radial-gradient(circle at 84% 16%, rgba(20, 184, 166, 0.18), transparent 42%),
+                  linear-gradient(140deg, #f4f6f8 0%, #e8eef2 58%, #f9fbfd 100%);
+      --surface: rgba(255, 255, 255, 0.84);
+      --surface-strong: #ffffff;
+      --text: #102635;
+      --muted: #4a6678;
       --accent: #0f766e;
-      --border: #d5d7db;
+      --accent-soft: #c8f2ee;
+      --warning: #d97706;
+      --danger: #c2410c;
+      --success: #15803d;
+      --border: #d6e2e9;
+      --shadow: 0 20px 55px rgba(12, 43, 64, 0.14);
+      --radius-lg: 18px;
+      --radius-md: 12px;
+      --mono: "IBM Plex Mono", "Cascadia Code", Consolas, monospace;
+      --sans: "Sora", "Trebuchet MS", "Segoe UI", sans-serif;
     }
-    * { box-sizing: border-box; }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
-      padding: 24px;
-      font-family: "Segoe UI", Tahoma, sans-serif;
-      background: var(--bg);
+      min-height: 100vh;
+      background: var(--bg-layer);
       color: var(--text);
+      font-family: var(--sans);
     }
-    h1 {
-      margin: 0 0 12px;
-      font-size: 24px;
-      letter-spacing: 0.2px;
-    }
-    .wrap {
-      max-width: 960px;
-      margin: 0 auto;
-      display: flex;
-      flex-direction: column;
+
+    .app-shell {
+      width: min(1240px, 94vw);
+      margin: 28px auto 36px;
+      display: grid;
       gap: 16px;
+      animation: reveal 500ms ease-out;
     }
-    .card {
-      background: var(--card);
+
+    .panel {
+      background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 16px;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(8px);
+      padding: 18px;
+      animation: slide-up 450ms ease-out;
     }
-    label {
-      font-size: 14px;
-      color: var(--muted);
-    }
-    input {
-      width: 100%;
-      padding: 10px;
-      margin-top: 6px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      font-size: 14px;
-    }
-    .row {
+
+    .hero {
       display: flex;
-      gap: 10px;
+      justify-content: space-between;
+      gap: 16px;
       flex-wrap: wrap;
       align-items: center;
     }
-    button {
-      padding: 10px 14px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      background: #e7f4f2;
-      color: var(--accent);
-      font-weight: 600;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #d9eeeb;
-    }
-    pre {
-      background: #0b1021;
-      color: #e5e7eb;
-      padding: 12px;
-      border-radius: 6px;
-      font-size: 13px;
-      overflow: auto;
+
+    .hero h1 {
       margin: 0;
+      letter-spacing: -0.4px;
+      font-size: clamp(1.3rem, 2.3vw, 1.9rem);
     }
-    .grid {
+
+    .hero p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+      max-width: 760px;
+    }
+
+    .stamp {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: var(--muted);
+      background: #eef3f7;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    .controls {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      grid-template-columns: 1.4fr 0.9fr auto auto auto;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field label {
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    input,
+    select,
+    button {
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      padding: 11px 12px;
+      font-family: var(--sans);
+      font-size: 0.92rem;
+      background: var(--surface-strong);
+    }
+
+    input:focus,
+    select:focus,
+    button:focus {
+      outline: 2px solid #91e6dc;
+      outline-offset: 1px;
+    }
+
+    .btn {
+      cursor: pointer;
+      font-weight: 600;
+      transition: transform 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
+      white-space: nowrap;
+    }
+
+    .btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 18px rgba(15, 118, 110, 0.16);
+    }
+
+    .btn.primary {
+      background: linear-gradient(120deg, #14b8a6, #0f766e);
+      color: #f5fffe;
+      border-color: #0f766e;
+    }
+
+    .btn.secondary {
+      background: #fff8eb;
+      color: #8c4a03;
+      border-color: #f0d29f;
+    }
+
+    .btn.alert {
+      background: #fff0e8;
+      color: #9a3412;
+      border-color: #f3c0ab;
+    }
+
+    .status-line {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 0.87rem;
+      font-family: var(--mono);
+      min-height: 1.4em;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 12px;
     }
-    .small {
-      font-size: 13px;
-      color: var(--muted);
+
+    .kpi {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      background: #ffffff;
+      position: relative;
+      overflow: hidden;
     }
-    .status {
-      margin-top: 10px;
-      font-size: 13px;
-      color: var(--muted);
+
+    .kpi::after {
+      content: "";
+      position: absolute;
+      width: 86px;
+      height: 86px;
+      border-radius: 50%;
+      right: -30px;
+      top: -40px;
+      background: rgba(15, 118, 110, 0.08);
     }
-    .status strong {
-      color: var(--text);
+
+    .kpi .label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      position: relative;
+      z-index: 1;
+    }
+
+    .kpi .value {
+      margin-top: 8px;
+      font-size: 1.4rem;
+      font-weight: 700;
+      position: relative;
+      z-index: 1;
+    }
+
+    .kpi .hint {
+      margin-top: 6px;
+      font-size: 0.82rem;
+      color: var(--muted);
+      position: relative;
+      z-index: 1;
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1.18fr 0.82fr;
+      gap: 12px;
+    }
+
+    .title-row {
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .title-row h2 {
+      margin: 0;
+      font-size: 1rem;
+      letter-spacing: 0.01em;
+    }
+
+    .title-row .sub {
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-family: var(--mono);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+
+    th,
+    td {
+      text-align: left;
+      padding: 9px 6px;
+      border-bottom: 1px solid #eaf1f5;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 600;
+    }
+
+    .badge {
+      border-radius: 999px;
+      padding: 3px 10px;
+      font-size: 0.74rem;
+      font-weight: 600;
+      font-family: var(--mono);
+      display: inline-block;
+      white-space: nowrap;
+    }
+
+    .ok {
+      background: #eaf9ef;
+      color: var(--success);
+      border: 1px solid #b9e8c8;
+    }
+
+    .warm {
+      background: #fff6e8;
+      color: var(--warning);
+      border: 1px solid #f2d6a7;
+    }
+
+    .bad {
+      background: #fdf0eb;
+      color: var(--danger);
+      border: 1px solid #f4c4b6;
+    }
+
+    .metric-stack {
+      display: grid;
+      gap: 10px;
+    }
+
+    .metric-plot {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 10px;
+      background: #fbfeff;
+    }
+
+    .metric-head {
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .metric-head strong {
+      font-size: 0.86rem;
+    }
+
+    .metric-head span {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.75rem;
+    }
+
+    .sparkline {
+      width: 100%;
+      height: 72px;
+      display: block;
+      border-radius: 9px;
+      background: linear-gradient(180deg, rgba(20, 184, 166, 0.09), rgba(20, 184, 166, 0.01));
+      border: 1px solid #d4ece9;
+    }
+
+    .log {
+      margin-top: 12px;
+      max-height: 160px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: #f7fafc;
+      padding: 8px;
+      font-family: var(--mono);
+      font-size: 0.76rem;
+      color: #1a3a4b;
+      line-height: 1.45;
+    }
+
+    .json {
+      margin-top: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: #0b1f2a;
+      color: #ddf0ff;
+      padding: 11px;
+      max-height: 180px;
+      overflow: auto;
+      font-family: var(--mono);
+      font-size: 0.76rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 0.83rem;
+    }
+
+    @keyframes reveal {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes slide-up {
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width: 980px) {
+      .controls {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .app-shell {
+        width: 95vw;
+        margin-top: 16px;
+      }
+
+      .controls {
+        grid-template-columns: 1fr;
+      }
+
+      .hero {
+        align-items: flex-start;
+      }
+
+      .kpi .value {
+        font-size: 1.2rem;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <h1>CostPilot Minimal Dashboard</h1>
-      <div class="small">Quick view of health and system metrics from the FastAPI backend.</div>
-    </header>
-
-    <section class="card">
-      <label for="base-url">Backend base URL</label>
-      <input id="base-url" value="http://localhost:8000" />
-      <div class="row" style="margin-top: 10px;">
-        <button id="btn-health">Check Health</button>
-        <button id="btn-metrics">Load System Metrics</button>
-        <button id="btn-refresh">Refresh All</button>
+  <main class="app-shell">
+    <section class="panel hero">
+      <div>
+        <h1>CostPilot Service Operations Dashboard</h1>
+        <p>Track API health, metrics collection, forecasting readiness, cost projection, and scaling actions from one place.</p>
       </div>
-      <div id="status-line" class="status">Ready.</div>
+      <div class="stamp" id="last-updated">Never updated</div>
     </section>
 
-    <section class="grid">
-      <div class="card">
-        <div class="small" style="margin-bottom:6px;">Health</div>
-        <pre id="health-box">(no data)</pre>
+    <section class="panel">
+      <div class="controls">
+        <div class="field">
+          <label for="base-url">Backend Base URL</label>
+          <input id="base-url" value="http://localhost:8000" placeholder="http://localhost:8000" />
+        </div>
+        <div class="field">
+          <label for="auto-refresh">Auto Refresh</label>
+          <select id="auto-refresh">
+            <option value="0">Off</option>
+            <option value="10">Every 10s</option>
+            <option value="20">Every 20s</option>
+            <option value="30">Every 30s</option>
+          </select>
+        </div>
+        <button type="button" class="btn primary" id="btn-refresh">Refresh Dashboard</button>
+        <button type="button" class="btn secondary" id="btn-collect">Collect Sample</button>
+        <button type="button" class="btn alert" id="btn-scale">Run Scale Action</button>
       </div>
-      <div class="card">
-        <div class="small" style="margin-bottom:6px;">Metrics summary</div>
-        <pre id="metrics-box">(no data)</pre>
-      </div>
+      <div class="status-line" id="status-line">Waiting for first refresh.</div>
     </section>
 
-    <section class="card">
-      <div class="small" style="margin-bottom:6px;">Raw metrics JSON</div>
-      <pre id="raw-box">(no data)</pre>
+    <section class="kpi-grid" id="kpi-grid">
+      <article class="kpi">
+        <div class="label">API Health</div>
+        <div class="value" id="kpi-health">--</div>
+        <div class="hint" id="kpi-health-hint">No signal yet</div>
+      </article>
+      <article class="kpi">
+        <div class="label">Scheduler</div>
+        <div class="value" id="kpi-scheduler">--</div>
+        <div class="hint" id="kpi-scheduler-hint">No signal yet</div>
+      </article>
+      <article class="kpi">
+        <div class="label">Stored Samples</div>
+        <div class="value" id="kpi-samples">0</div>
+        <div class="hint" id="kpi-samples-hint">Warm-up unknown</div>
+      </article>
+      <article class="kpi">
+        <div class="label">Forecast Readiness</div>
+        <div class="value" id="kpi-forecast">--</div>
+        <div class="hint" id="kpi-forecast-hint">No signal yet</div>
+      </article>
+      <article class="kpi">
+        <div class="label">Cost Per Hour</div>
+        <div class="value" id="kpi-cost">--</div>
+        <div class="hint" id="kpi-cost-hint">Waiting for prediction</div>
+      </article>
+      <article class="kpi">
+        <div class="label">Recommended Replicas</div>
+        <div class="value" id="kpi-replicas">--</div>
+        <div class="hint" id="kpi-replicas-hint">Preview pending</div>
+      </article>
     </section>
-  </div>
+
+    <section class="main-grid">
+      <article class="panel">
+        <div class="title-row">
+          <h2>Service Status Matrix</h2>
+          <span class="sub">Live endpoint checks with latency</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Service</th>
+              <th>Status</th>
+              <th>Latency</th>
+              <th>Message</th>
+            </tr>
+          </thead>
+          <tbody id="service-body">
+            <tr><td colspan="4" class="muted">No checks yet.</td></tr>
+          </tbody>
+        </table>
+
+        <div class="title-row" style="margin-top: 14px;">
+          <h2>Forecast Horizon</h2>
+          <span class="sub">Next 6 prediction points</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>CPU</th>
+              <th>Memory</th>
+              <th>Request Rate</th>
+            </tr>
+          </thead>
+          <tbody id="forecast-body">
+            <tr><td colspan="4" class="muted">No forecast yet.</td></tr>
+          </tbody>
+        </table>
+      </article>
+
+      <article class="panel">
+        <div class="title-row">
+          <h2>Metric Trends</h2>
+          <span class="sub">Recent stored samples</span>
+        </div>
+        <div class="metric-stack">
+          <div class="metric-plot">
+            <div class="metric-head"><strong>CPU Usage</strong><span id="cpu-meta">n/a</span></div>
+            <svg class="sparkline" id="cpu-spark" viewBox="0 0 300 72" preserveAspectRatio="none"></svg>
+          </div>
+          <div class="metric-plot">
+            <div class="metric-head"><strong>Memory Usage</strong><span id="memory-meta">n/a</span></div>
+            <svg class="sparkline" id="memory-spark" viewBox="0 0 300 72" preserveAspectRatio="none"></svg>
+          </div>
+          <div class="metric-plot">
+            <div class="metric-head"><strong>Request Load</strong><span id="request-meta">n/a</span></div>
+            <svg class="sparkline" id="request-spark" viewBox="0 0 300 72" preserveAspectRatio="none"></svg>
+          </div>
+        </div>
+
+        <div class="title-row" style="margin-top: 14px;">
+          <h2>Raw Dashboard Snapshot</h2>
+          <span class="sub">Backend status payload</span>
+        </div>
+        <pre id="raw-box" class="json">(no payload)</pre>
+
+        <div class="title-row" style="margin-top: 14px;">
+          <h2>Event Log</h2>
+          <span class="sub">Newest first</span>
+        </div>
+        <div id="event-log" class="log">No events yet.</div>
+      </article>
+    </section>
+  </main>
 
   <script>
-    const baseInput = document.getElementById("base-url");
-    const healthBox = document.getElementById("health-box");
-    const metricsBox = document.getElementById("metrics-box");
-    const rawBox = document.getElementById("raw-box");
-    const btnHealth = document.getElementById("btn-health");
-    const btnMetrics = document.getElementById("btn-metrics");
-    const btnRefresh = document.getElementById("btn-refresh");
-    const statusLine = document.getElementById("status-line");
     const STORAGE_KEY = "costpilot.baseUrl";
+    const STORAGE_REFRESH = "costpilot.refreshSeconds";
 
-    // Persist backend URL so the dashboard remembers local/dev environments.
-    const savedBase = localStorage.getItem(STORAGE_KEY);
-    if (savedBase) {
-      baseInput.value = savedBase;
+    const elements = {
+      baseUrl: document.getElementById("base-url"),
+      autoRefresh: document.getElementById("auto-refresh"),
+      refresh: document.getElementById("btn-refresh"),
+      collect: document.getElementById("btn-collect"),
+      scale: document.getElementById("btn-scale"),
+      status: document.getElementById("status-line"),
+      lastUpdated: document.getElementById("last-updated"),
+      serviceBody: document.getElementById("service-body"),
+      forecastBody: document.getElementById("forecast-body"),
+      rawBox: document.getElementById("raw-box"),
+      eventLog: document.getElementById("event-log"),
+      kpiHealth: document.getElementById("kpi-health"),
+      kpiHealthHint: document.getElementById("kpi-health-hint"),
+      kpiScheduler: document.getElementById("kpi-scheduler"),
+      kpiSchedulerHint: document.getElementById("kpi-scheduler-hint"),
+      kpiSamples: document.getElementById("kpi-samples"),
+      kpiSamplesHint: document.getElementById("kpi-samples-hint"),
+      kpiForecast: document.getElementById("kpi-forecast"),
+      kpiForecastHint: document.getElementById("kpi-forecast-hint"),
+      kpiCost: document.getElementById("kpi-cost"),
+      kpiCostHint: document.getElementById("kpi-cost-hint"),
+      kpiReplicas: document.getElementById("kpi-replicas"),
+      kpiReplicasHint: document.getElementById("kpi-replicas-hint"),
+      cpuSpark: document.getElementById("cpu-spark"),
+      memorySpark: document.getElementById("memory-spark"),
+      requestSpark: document.getElementById("request-spark"),
+      cpuMeta: document.getElementById("cpu-meta"),
+      memoryMeta: document.getElementById("memory-meta"),
+      requestMeta: document.getElementById("request-meta")
+    };
+
+    const state = {
+      timerId: null,
+      events: [],
+      isRefreshing: false
+    };
+
+    const trackedServices = [
+      { label: "Health", method: "GET", path: "/health" },
+      { label: "Dashboard Status", method: "GET", path: "/api/dashboard/status" },
+      { label: "System Metrics", method: "GET", path: "/api/system-metrics" },
+      { label: "Stored Metrics", method: "GET", path: "/api/metrics" },
+      { label: "Forecast Engine", method: "GET", path: "/api/forecast/system" },
+      { label: "Cost Forecast", method: "GET", path: "/api/cost/forecast" },
+      { label: "Optimize Preview", method: "GET", path: "/api/optimize/preview" }
+    ];
+
+    function logEvent(message) {
+      const stamp = new Date().toLocaleTimeString();
+      state.events.unshift(`[${stamp}] ${message}`);
+      state.events = state.events.slice(0, 24);
+      elements.eventLog.textContent = state.events.join("\n");
     }
-    baseInput.addEventListener("change", () => {
-      localStorage.setItem(STORAGE_KEY, baseInput.value.trim());
-    });
 
     function setStatus(message) {
-      statusLine.textContent = message;
+      elements.status.textContent = message;
     }
 
-    function setButtonsDisabled(disabled) {
-      btnHealth.disabled = disabled;
-      btnMetrics.disabled = disabled;
-      btnRefresh.disabled = disabled;
+    function setBusy(isBusy) {
+      elements.refresh.disabled = isBusy;
+      elements.collect.disabled = isBusy;
+      elements.scale.disabled = isBusy;
+    }
+
+    function normalizeBaseUrl() {
+      return elements.baseUrl.value.trim().replace(/\/$/, "");
     }
 
     function buildUrl(path) {
-      const trimmed = baseInput.value.trim().replace(/\/$/, "");
-      return trimmed + path;
-    }
-
-    async function fetchJson(path) {
-      const url = buildUrl(path);
-      const res = await fetch(url, {
-        headers: {
-          "Accept": "application/json"
-        }
-      });
-      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-      return res.json();
-    }
-
-    function show(target, data) {
-      target.textContent = JSON.stringify(data, null, 2);
-    }
-
-    function showError(target, err) {
-      target.textContent = `error: ${err.message || err}`;
+      const base = normalizeBaseUrl();
+      return `${base}${path}`;
     }
 
     function toNumber(value) {
@@ -192,74 +649,473 @@
       return Number.isFinite(n) ? n : null;
     }
 
-    function buildMetricsView(summary) {
-      const cpu = toNumber(summary.avg_cpu_percent);
-      const mem = toNumber(summary.avg_memory_percent);
-      const req = toNumber(summary.total_requests);
+    function formatTime(seconds) {
+      const n = toNumber(seconds);
+      if (n === null) return "n/a";
+      if (n < 60) return `${n.toFixed(1)}s`;
+      const minutes = Math.floor(n / 60);
+      const rem = Math.round(n % 60);
+      return `${minutes}m ${rem}s`;
+    }
+
+    function formatCurrency(value) {
+      const n = toNumber(value);
+      return n === null ? "--" : `$${n.toFixed(4)}`;
+    }
+
+    async function fetchJson(path, options = {}) {
+      const start = performance.now();
+      const url = buildUrl(path);
+      try {
+        const response = await fetch(url, {
+          method: options.method || "GET",
+          headers: {
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+          }
+        });
+
+        const latency = performance.now() - start;
+        const text = await response.text();
+        let payload = null;
+
+        if (text) {
+          try {
+            payload = JSON.parse(text);
+          } catch (err) {
+            payload = { raw: text };
+          }
+        }
+
+        if (!response.ok) {
+          const detail = payload && (payload.detail || payload.error || payload.message);
+          return {
+            ok: false,
+            status: response.status,
+            path,
+            url,
+            latency,
+            error: detail || response.statusText,
+            data: payload
+          };
+        }
+
+        return {
+          ok: true,
+          status: response.status,
+          path,
+          url,
+          latency,
+          data: payload
+        };
+      } catch (err) {
+        return {
+          ok: false,
+          status: 0,
+          path,
+          url,
+          latency: performance.now() - start,
+          error: err.message || String(err)
+        };
+      }
+    }
+
+    function classify(result) {
+      if (!result.ok) {
+        return {
+          className: "bad",
+          label: "offline",
+          message: result.error || "request failed"
+        };
+      }
+
+      const errorMessage = result.data && (result.data.error || result.data.detail);
+      if (errorMessage) {
+        const lower = String(errorMessage).toLowerCase();
+        if (lower.includes("not enough data")) {
+          return {
+            className: "warm",
+            label: "warming",
+            message: errorMessage
+          };
+        }
+        return {
+          className: "bad",
+          label: "degraded",
+          message: errorMessage
+        };
+      }
 
       return {
-        cpu_utilization: cpu !== null ? `${cpu.toFixed(2)}%` : "n/a",
-        memory_utilization: mem !== null ? `${mem.toFixed(2)}%` : "n/a",
-        total_requests: req !== null ? Math.round(req) : "n/a",
-        sample_count: toNumber(summary.sample_count) ?? "n/a"
+        className: "ok",
+        label: "online",
+        message: "ok"
       };
     }
 
-    async function loadHealth() {
-      try {
-        const data = await fetchJson("/health");
-        show(healthBox, data);
-      } catch (err) {
-        showError(healthBox, err);
-      }
+    function renderServices(results) {
+      const rows = results.map((item) => {
+        const status = classify(item.result);
+        const latency = item.result.latency ? `${item.result.latency.toFixed(0)}ms` : "--";
+        return `
+          <tr>
+            <td>${item.service.label}</td>
+            <td><span class="badge ${status.className}">${status.label}</span></td>
+            <td>${latency}</td>
+            <td>${status.message}</td>
+          </tr>
+        `;
+      });
+
+      elements.serviceBody.innerHTML = rows.join("");
     }
 
-    async function loadMetrics() {
-      try {
-        const data = await fetchJson("/api/system-metrics");
-        const summary = data.summary || {};
-        show(metricsBox, buildMetricsView(summary));
-        show(rawBox, data);
-      } catch (err) {
-        showError(metricsBox, err);
-        showError(rawBox, err);
-      }
-    }
-
-    async function refreshAll() {
-      const base = baseInput.value.trim();
-      if (!base) {
-        setStatus("Enter a backend URL before requesting data.");
+    function renderForecast(forecastResult) {
+      if (!forecastResult.ok) {
+        elements.forecastBody.innerHTML = `<tr><td colspan="4" class="muted">${forecastResult.error || "Forecast unavailable"}</td></tr>`;
         return;
       }
 
-      localStorage.setItem(STORAGE_KEY, base);
-      setButtonsDisabled(true);
-      setStatus(`Fetching data from ${base}...`);
+      const payload = forecastResult.data || {};
+      if (payload.error) {
+        elements.forecastBody.innerHTML = `<tr><td colspan="4" class="muted">${payload.error}</td></tr>`;
+        return;
+      }
 
-      const start = performance.now();
-      try {
-        await Promise.all([loadHealth(), loadMetrics()]);
-        const elapsed = performance.now() - start;
-        setStatus(`Updated successfully in ${elapsed.toFixed(0)}ms.`);
-      } catch (err) {
-        setStatus(`Refresh failed: ${err.message || err}`);
-      } finally {
-        setButtonsDisabled(false);
+      const cpu = payload.cpu_forecast || [];
+      const memory = payload.memory_forecast || [];
+      const request = payload.request_forecast || [];
+
+      if (!cpu.length) {
+        elements.forecastBody.innerHTML = `<tr><td colspan="4" class="muted">No forecast points yet.</td></tr>`;
+        return;
+      }
+
+      const rows = cpu.map((point, index) => {
+        const time = new Date(point.timestamp).toLocaleTimeString();
+        const cpuValue = toNumber(point.prediction);
+        const memoryValue = toNumber(memory[index] ? memory[index].prediction : null);
+        const reqValue = toNumber(request[index] ? request[index].prediction : null);
+
+        return `
+          <tr>
+            <td>${time}</td>
+            <td>${cpuValue !== null ? cpuValue.toFixed(2) : "n/a"}</td>
+            <td>${memoryValue !== null ? memoryValue.toFixed(2) : "n/a"}</td>
+            <td>${reqValue !== null ? reqValue.toFixed(3) : "n/a"}</td>
+          </tr>
+        `;
+      });
+
+      elements.forecastBody.innerHTML = rows.join("");
+    }
+
+    function sparklinePoints(values) {
+      if (!values.length) {
+        return "";
+      }
+
+      const width = 300;
+      const height = 72;
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      const span = max - min || 1;
+
+      return values.map((value, index) => {
+        const x = values.length === 1 ? width / 2 : (index / (values.length - 1)) * width;
+        const normalized = (value - min) / span;
+        const y = height - normalized * (height - 8) - 4;
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+      }).join(" ");
+    }
+
+    function renderSparkline(svg, values, color) {
+      if (!values.length) {
+        svg.innerHTML = "";
+        return;
+      }
+
+      const points = sparklinePoints(values);
+      const last = points.split(" ").slice(-1)[0];
+      svg.innerHTML = `
+        <polyline points="${points}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></polyline>
+        <circle cx="${last.split(",")[0]}" cy="${last.split(",")[1]}" r="2.8" fill="${color}"></circle>
+      `;
+    }
+
+    function renderMetrics(metricsResult) {
+      if (!metricsResult.ok) {
+        elements.cpuMeta.textContent = "data unavailable";
+        elements.memoryMeta.textContent = "data unavailable";
+        elements.requestMeta.textContent = "data unavailable";
+        renderSparkline(elements.cpuSpark, [], "#14b8a6");
+        renderSparkline(elements.memorySpark, [], "#f59e0b");
+        renderSparkline(elements.requestSpark, [], "#0ea5e9");
+        return;
+      }
+
+      const data = Array.isArray(metricsResult.data) ? metricsResult.data : [];
+      const ordered = data.slice(0, 24).reverse();
+
+      const cpuValues = ordered.map((item) => toNumber(item.cpu_usage)).filter((item) => item !== null);
+      const memoryValues = ordered.map((item) => toNumber(item.memory_usage)).filter((item) => item !== null);
+      const requestValues = ordered.map((item) => toNumber(item.request_load)).filter((item) => item !== null);
+
+      renderSparkline(elements.cpuSpark, cpuValues, "#0f766e");
+      renderSparkline(elements.memorySpark, memoryValues, "#d97706");
+      renderSparkline(elements.requestSpark, requestValues, "#0284c7");
+
+      const latest = data[0];
+      if (!latest) {
+        elements.cpuMeta.textContent = "no samples";
+        elements.memoryMeta.textContent = "no samples";
+        elements.requestMeta.textContent = "no samples";
+        return;
+      }
+
+      const latestCpu = toNumber(latest.cpu_usage);
+      const latestMem = toNumber(latest.memory_usage);
+      const latestReq = toNumber(latest.request_load);
+
+      elements.cpuMeta.textContent = latestCpu !== null ? `latest ${latestCpu.toFixed(2)}%` : "latest n/a";
+      elements.memoryMeta.textContent = latestMem !== null ? `latest ${latestMem.toFixed(2)}%` : "latest n/a";
+      elements.requestMeta.textContent = latestReq !== null ? `latest ${latestReq.toFixed(3)}` : "latest n/a";
+    }
+
+    function updateKpis(healthResult, statusResult, costResult, previewResult) {
+      const healthStatus = classify(healthResult);
+      elements.kpiHealth.textContent = healthStatus.label.toUpperCase();
+      elements.kpiHealthHint.textContent = healthStatus.message;
+
+      if (statusResult.ok && statusResult.data) {
+        const schedulerRunning = !!(statusResult.data.components && statusResult.data.components.scheduler_running);
+        const scheduler = statusResult.data.scheduler || {};
+        elements.kpiScheduler.textContent = schedulerRunning ? "RUNNING" : "STOPPED";
+        elements.kpiSchedulerHint.textContent = scheduler.last_success
+          ? `Last success ${new Date(scheduler.last_success).toLocaleTimeString()}`
+          : (scheduler.last_error || "No successful run yet");
+
+        const metrics = statusResult.data.metrics || {};
+        const stored = toNumber(metrics.stored_samples) || 0;
+        const remaining = toNumber(metrics.warmup_remaining);
+        elements.kpiSamples.textContent = String(stored);
+        elements.kpiSamplesHint.textContent = remaining !== null && remaining > 0
+          ? `${remaining} sample(s) to forecast readiness`
+          : "Warm-up complete";
+
+        const forecastReady = !!(statusResult.data.components && statusResult.data.components.forecast_ready);
+        elements.kpiForecast.textContent = forecastReady ? "READY" : "WARMING";
+        elements.kpiForecastHint.textContent = forecastReady
+          ? "Forecast engine can serve predictions"
+          : "Collect more metric samples";
+      } else {
+        elements.kpiScheduler.textContent = "--";
+        elements.kpiSchedulerHint.textContent = "Status endpoint unavailable";
+        elements.kpiSamples.textContent = "--";
+        elements.kpiSamplesHint.textContent = "Status endpoint unavailable";
+        elements.kpiForecast.textContent = "--";
+        elements.kpiForecastHint.textContent = "Status endpoint unavailable";
+      }
+
+      if (costResult.ok && costResult.data && !costResult.data.error) {
+        elements.kpiCost.textContent = formatCurrency(costResult.data.predicted_hourly_cost);
+        elements.kpiCostHint.textContent = `CPU ${toNumber(costResult.data.predicted_cpu)?.toFixed(2) || "n/a"}% | Mem ${toNumber(costResult.data.predicted_memory)?.toFixed(2) || "n/a"}%`;
+      } else {
+        const message = (costResult.data && (costResult.data.error || costResult.data.detail)) || costResult.error || "No cost projection yet";
+        elements.kpiCost.textContent = "--";
+        elements.kpiCostHint.textContent = message;
+      }
+
+      if (previewResult.ok && previewResult.data && !previewResult.data.error) {
+        elements.kpiReplicas.textContent = String(previewResult.data.recommended_replicas);
+        elements.kpiReplicasHint.textContent = "Preview mode (no deployment change)";
+      } else {
+        const message = (previewResult.data && (previewResult.data.error || previewResult.data.detail)) || previewResult.error || "No preview available";
+        elements.kpiReplicas.textContent = "--";
+        elements.kpiReplicasHint.textContent = message;
       }
     }
 
-    btnHealth.addEventListener("click", loadHealth);
-    btnMetrics.addEventListener("click", loadMetrics);
-    btnRefresh.addEventListener("click", refreshAll);
-    baseInput.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        refreshAll();
-      }
-    });
+    async function refreshDashboard(source = "manual") {
+      if (state.isRefreshing) {
+        // Skip overlapping auto-refresh cycles to avoid a loop-like UX.
+        if (source === "auto") {
+          return;
+        }
 
-    // basic auto-load on start
-    refreshAll();
+        setStatus("A refresh is already in progress.");
+        return;
+      }
+
+      const base = normalizeBaseUrl();
+      if (!base) {
+        setStatus("Backend base URL is required.");
+        return;
+      }
+
+      state.isRefreshing = true;
+      localStorage.setItem(STORAGE_KEY, base);
+      setBusy(true);
+      setStatus(`Refreshing dashboard from ${base}...`);
+
+      const started = performance.now();
+
+      try {
+        const endpointCalls = {
+          health: fetchJson("/health"),
+          status: fetchJson("/api/dashboard/status"),
+          system: fetchJson("/api/system-metrics"),
+          metrics: fetchJson("/api/metrics"),
+          forecast: fetchJson("/api/forecast/system"),
+          cost: fetchJson("/api/cost/forecast"),
+          preview: fetchJson("/api/optimize/preview")
+        };
+
+        const [healthResult, statusResult, systemResult, metricsResult, forecastResult, costResult, previewResult] = await Promise.all([
+          endpointCalls.health,
+          endpointCalls.status,
+          endpointCalls.system,
+          endpointCalls.metrics,
+          endpointCalls.forecast,
+          endpointCalls.cost,
+          endpointCalls.preview
+        ]);
+
+        const serviceResults = trackedServices.map((service) => {
+          const key = service.path === "/health"
+            ? "health"
+            : service.path === "/api/dashboard/status"
+              ? "status"
+              : service.path === "/api/system-metrics"
+                ? "system"
+                : service.path === "/api/metrics"
+                  ? "metrics"
+                  : service.path === "/api/forecast/system"
+                    ? "forecast"
+                    : service.path === "/api/cost/forecast"
+                      ? "cost"
+                      : "preview";
+          return {
+            service,
+            result: {
+              health: healthResult,
+              status: statusResult,
+              system: systemResult,
+              metrics: metricsResult,
+              forecast: forecastResult,
+              cost: costResult,
+              preview: previewResult
+            }[key]
+          };
+        });
+
+        renderServices(serviceResults);
+        renderForecast(forecastResult);
+        renderMetrics(metricsResult);
+        updateKpis(healthResult, statusResult, costResult, previewResult);
+
+        if (statusResult.ok) {
+          elements.rawBox.textContent = JSON.stringify(statusResult.data, null, 2);
+        } else {
+          elements.rawBox.textContent = JSON.stringify(statusResult, null, 2);
+        }
+
+        const elapsed = performance.now() - started;
+        const totalOnline = serviceResults.filter((entry) => classify(entry.result).label === "online").length;
+
+        setStatus(`Refresh complete in ${elapsed.toFixed(0)}ms. ${totalOnline}/${serviceResults.length} services online.`);
+        elements.lastUpdated.textContent = `Updated ${new Date().toLocaleString()}`;
+        logEvent(`Refresh (${source}) finished in ${elapsed.toFixed(0)}ms.`);
+      } catch (error) {
+        setStatus(`Refresh failed: ${error.message || error}`);
+        logEvent(`Refresh (${source}) failed: ${error.message || error}`);
+      } finally {
+        state.isRefreshing = false;
+        setBusy(false);
+      }
+    }
+
+    async function collectSample() {
+      setBusy(true);
+      setStatus("Collecting a fresh metrics sample...");
+      const result = await fetchJson("/api/metrics/collect", { method: "POST" });
+
+      if (result.ok) {
+        logEvent("Metrics sample collected successfully.");
+        setStatus("Sample collected. Refreshing dashboard...");
+        await refreshDashboard("collect");
+      } else {
+        setStatus(`Sample collection failed: ${result.error}`);
+        logEvent(`Sample collection failed: ${result.error}`);
+        setBusy(false);
+      }
+    }
+
+    async function runScaleAction() {
+      setBusy(true);
+      setStatus("Sending scale request to optimizer...");
+      const result = await fetchJson("/api/optimize/scale", { method: "POST" });
+
+      if (result.ok) {
+        const replicas = result.data ? result.data.new_replicas : "unknown";
+        setStatus(`Scale action completed. New replicas: ${replicas}`);
+        logEvent(`Scale action applied: ${replicas} replica(s).`);
+      } else {
+        setStatus(`Scale action failed: ${result.error}`);
+        logEvent(`Scale action failed: ${result.error}`);
+      }
+
+      await refreshDashboard("scale");
+    }
+
+    function configureAutoRefresh() {
+      const seconds = Number(elements.autoRefresh.value);
+      localStorage.setItem(STORAGE_REFRESH, String(seconds));
+
+      if (state.timerId) {
+        clearInterval(state.timerId);
+        state.timerId = null;
+      }
+
+      if (seconds > 0) {
+        state.timerId = setInterval(() => {
+          refreshDashboard("auto");
+        }, seconds * 1000);
+        logEvent(`Auto refresh enabled every ${seconds}s.`);
+      } else {
+        logEvent("Auto refresh disabled.");
+      }
+    }
+
+    function initialize() {
+      const savedBase = localStorage.getItem(STORAGE_KEY);
+      if (savedBase) {
+        elements.baseUrl.value = savedBase;
+      }
+
+      // Always start with auto refresh disabled to prevent unwanted loop-like behavior.
+      elements.autoRefresh.value = "0";
+      localStorage.setItem(STORAGE_REFRESH, "0");
+
+      elements.baseUrl.addEventListener("change", () => {
+        localStorage.setItem(STORAGE_KEY, normalizeBaseUrl());
+      });
+      elements.baseUrl.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          refreshDashboard("enter");
+        }
+      });
+
+      elements.autoRefresh.addEventListener("change", configureAutoRefresh);
+      elements.refresh.addEventListener("click", () => refreshDashboard("manual"));
+      elements.collect.addEventListener("click", collectSample);
+      elements.scale.addEventListener("click", runScaleAction);
+
+      configureAutoRefresh();
+      refreshDashboard("startup");
+    }
+
+    initialize();
   </script>
 </body>
 </html>
