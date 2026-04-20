@@ -5,25 +5,25 @@ const api = axios.create({
   timeout: 10000,
 })
 
-export const fetchMetrics       = () => api.get("/metrics")
-export const fetchForecast      = () => api.get("/forecast/system")
-export const fetchCostForecast  = () => api.get("/forecast/cost")
-export const runOptimizer       = () => api.post("/optimize/scale")
+export const fetchMetrics       = () => api.get("/api/metrics")
+export const fetchForecast      = () => api.get("/api/forecast/system")
+export const fetchCostForecast  = () => api.get("/api/cost/forecast")
+export const runOptimizer       = () => api.post("/api/optimize/scale")
 
-export const fetchRLStats       = () => api.get("/rl/stats")
-export const fetchRLDecision    = () => api.get("/rl/decision/latest")
-export const fetchRLExplanation = () => api.get("/rl/explanation/latest")
-export const fetchAWSState      = () => api.get("/rl/aws/state")
+export const fetchRLStats       = () => api.get("/api/rl/stats")
+export const fetchRLDecision    = () => api.get("/api/rl/decision/latest")
+export const fetchRLExplanation = () => api.get("/api/rl/explanation/latest")
+export const fetchAWSState      = () => api.get("/api/rl/aws/state")
 
-export const fetchSLOConfig     = () => api.get("/optimize/slo")
-export const fetchSafetyStatus  = () => api.get("/optimize/safety/status")
+export const fetchSLOConfig     = () => api.get("/api/optimize/slo")
+export const fetchSafetyStatus  = () => api.get("/api/optimize/safety/status")
 
-export const fetchAzureACI      = () => api.get("/azure/aci")
-export const fetchAzureCost     = () => api.get("/azure/cost/current-month")
-export const fetchAzureCostByService = () => api.get("/azure/cost/by-service")
+export const fetchAzureACI      = () => api.get("/api/azure/aci")
+export const fetchAzureCost     = () => api.get("/api/azure/cost/current-month")
+export const fetchAzureCostByService = () => api.get("/api/azure/cost/by-service")
 
-export const fetchAWSASGs       = () => api.get("/aws/ec2/asgs")
-export const fetchAWSClusters   = () => api.get("/aws/ecs/clusters")
-export const fetchAWSActions    = () => api.get("/aws/actions/log")
+export const fetchAWSASGs       = () => api.get("/api/aws/ec2/asgs")
+export const fetchAWSClusters   = () => api.get("/api/aws/ecs/clusters")
+export const fetchAWSActions    = () => api.get("/api/aws/actions/log")
 
 export default api

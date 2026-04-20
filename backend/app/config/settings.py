@@ -23,7 +23,7 @@ class Settings(BaseSettings):
 	kube_config_path: Optional[str] = Field(None, description="Optional path to a kubeconfig file")
 
 	if USING_PYDANTIC_V2:
-		model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+		model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 	else:
 		class Config:
 			env_file = ".env"
