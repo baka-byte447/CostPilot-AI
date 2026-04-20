@@ -3,20 +3,19 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-from .mock_aws import (
-    MockEC2Controller,
-    MockECSController,
-    MockEKSController,
-    MockCostExplorer)
+from .ec2_controller import EC2Controller
+from .ecs_controller import ECSController
+from .eks_controller import EKSController
+from .cost_explorer import CostExplorer
 
 def get_ec2_ctrl():
-    return MockEC2Controller()
+    return EC2Controller()
 
 def get_ecs_ctrl():
-    return MockECSController()
+    return ECSController()
 
 def get_eks_ctrl():
-    return MockEKSController()
+    return EKSController()
 
 def get_cost_explorer():
-    return MockCostExplorer()
+    return CostExplorer()

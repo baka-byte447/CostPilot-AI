@@ -18,6 +18,9 @@ from app.api.cost import router as cost_router
 from app.api.forecast import router as forecast_router
 from app.api.metrics import router as metrics_router
 from app.api.optimize import router as optimize_router
+from app.api.aws import router as aws_router
+from app.api.azure import router as azure_router
+from app.api.rl import router as rl_router
 from app.config.database import Base, SessionLocal, engine
 from app.config.settings import settings
 from app.models.metrics_model import Metrics
@@ -216,6 +219,9 @@ app.include_router(metrics_router, prefix="/api")
 app.include_router(forecast_router, prefix="/api")
 app.include_router(cost_router, prefix="/api")
 app.include_router(optimize_router, prefix="/api")
+app.include_router(aws_router, prefix="/api")
+app.include_router(azure_router, prefix="/api")
+app.include_router(rl_router, prefix="/api")
 
 
 if __name__ == "__main__":

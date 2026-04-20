@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import {
   fetchMetrics,
   fetchRLDecision,
-  fetchAzureCost,
+  fetchAWSCost,
   fetchCostForecast,
   fetchRLStats,
   fetchAWSState
@@ -21,8 +21,8 @@ export default function Overview({ onNavigate, onRunOptimizer }: OverviewProps) 
   const [lastUpdated, setLastUpdated] = useState("");
 
   const [kpis, setKpis] = useState({
-    azureCost: "—",
-    azureCredits: "loading...",
+    awsCost: "—",
+    awsCredits: "loading...",
     creditsPositive: true,
     cpu: "—",
     cpuSub: "from Prometheus",
@@ -48,10 +48,10 @@ export default function Overview({ onNavigate, onRunOptimizer }: OverviewProps) 
   }, []);
 
   async function load() {
-    const [m, decision, azure, awsState, forecast, rlStats] = await Promise.all([
+    const [m, decision, awsCostMetric, awsState, forecast, rlStats] = await Promise.all([
       fetchMetrics().catch(() => ({ data: null })),
       fetchRLDecision().catch(() => ({ data: null })),
-      fetchAzureCost().catch(() => ({ data: null })),
+      fetchAWSCost().catch(() => ({ data: null })),
       fetchAWSState().catch(() => ({ data: null })),
       fetchCostForecast().catch(() => ({ data: null })),
       fetchRLStats().catch(() => ({ data: null })),
@@ -59,7 +59,7 @@ export default function Overview({ onNavigate, onRunOptimizer }: OverviewProps) 
 
     const metrics = m.data;
     const d = decision.data;
-    const az = azure.data;
+    const awsAmount = awsCostMetric.data;
     const fc = forecast.data;
     const stats = rlStats.data;
     const aws = awsState.data;
@@ -67,11 +67,11 @@ export default function Overview({ onNavigate, onRunOptimizer }: OverviewProps) 
     setKpis((prev) => {
       const next = { ...prev };
 
-      if (az) {
-        next.azureCost = "$" + az.amount?.toFixed(2);
-        const rem = (100 - az.amount).toFixed(2);
+      if (awsAmount) {
+        next.awsCost = "$" + awsAmount.amount?.toFixed(2);
+        const rem = (100 - awsAmount.amount).toFixed(2);
         next.creditsPositive = parseFloat(rem) > 0;
-        next.azureCredits = parseFloat(rem) > 0 ? `$${rem} credits left` : `Over budget by $${Math.abs(parseFloat(rem))}`;
+        next.awsCredits = parseFloat(rem) > 0 ? `$${rem} credits left` : `Over budget by $${Math.abs(parseFloat(rem))}`;
       }
 
       if (metrics?.length) {
@@ -173,13 +173,13 @@ export default function Overview({ onNavigate, onRunOptimizer }: OverviewProps) 
       <div className="grid grid-cols-5 gap-5 mb-8">
         <div className="glass-panel p-5 rounded-xl hover:bg-[#272a31]/30 transition-all">
           <div className="flex justify-between items-start mb-4">
-            <span className="text-slate-500 font-bold text-[9px] uppercase tracking-widest">Azure Cost MTD</span>
+            <span className="text-slate-500 font-bold text-[9px] uppercase tracking-widest">AWS Cost MTD</span>
             <span className="material-symbols-outlined text-primary text-lg">payments</span>
           </div>
-          <div className="text-3xl font-bold headline text-white">{kpis.azureCost}</div>
+          <div className="text-3xl font-bold headline text-white">{kpis.awsCost}</div>
           <div className={`text-[11px] mt-2 flex items-center gap-1 ${kpis.creditsPositive ? "text-primary" : "text-red-400"}`}>
             <span className="material-symbols-outlined text-xs">account_balance_wallet</span>
-            {kpis.azureCredits}
+            {kpis.awsCredits}
           </div>
         </div>
 
