@@ -17,6 +17,11 @@ const navItems = [
 export default function Sidebar({ setPage, currentPage, onRunOptimizer }: SidebarProps) {
   const groups = ["Platform", "AI Engine", "Infrastructure"];
 
+  const handleApplyChanges = () => {
+    onRunOptimizer();
+    alert("Global changes applied successfully!");
+  };
+
   return (
     <aside className="flex flex-col fixed left-0 top-0 h-full w-64 bg-[#191c22]/80 backdrop-blur-2xl border-r border-[#3cddc7]/10 shadow-[0_0_64px_rgba(60,221,199,0.04)] z-50 overflow-y-auto">
       <div className="p-7 flex items-center gap-3 border-b border-[#3cddc7]/10">
@@ -53,7 +58,7 @@ export default function Sidebar({ setPage, currentPage, onRunOptimizer }: Sideba
 
       <div className="p-5 border-t border-[#3cddc7]/10">
         <button
-          onClick={onRunOptimizer}
+          onClick={handleApplyChanges}
           className="w-full py-3 rounded-full bg-gradient-to-r from-primary to-primary-container text-on-primary font-bold text-sm shadow-[0_0_20px_rgba(87,241,219,0.25)] hover:opacity-90 active:scale-95 transition-all"
         >
           Apply Changes

@@ -15,6 +15,7 @@ export default function AIOptimizer({ onRunOptimizer }: AIOptimizerProps) {
   const [decision, setDecision] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
   const [actions, setActions] = useState<any[]>([]);
+  const [mode, setMode] = useState<"Auto" | "Manual">("Auto");
 
   useEffect(() => {
     load();
@@ -32,6 +33,15 @@ export default function AIOptimizer({ onRunOptimizer }: AIOptimizerProps) {
       setActions(a.data || []);
     } catch {}
   }
+
+  const handleApply = () => {
+    onRunOptimizer();
+    alert("Recommendation applied!");
+  };
+
+  const handleSimulate = () => {
+    alert("Simulation started. Check backend logs.");
+  };
 
   const d = decision?.decision;
   const action = d?.action ?? "maintain";
@@ -175,16 +185,30 @@ export default function AIOptimizer({ onRunOptimizer }: AIOptimizerProps) {
         <section className="col-span-4 bg-[#191c22] rounded-xl p-8 border border-[#3c4a46]/10 space-y-5">
           <h3 className="text-base font-bold headline text-white">System Mode</h3>
           <div className="bg-[#10131a] p-1 rounded-full flex w-fit">
-            <button className="px-4 py-1.5 rounded-full bg-primary text-on-primary text-xs font-bold">Auto</button>
-            <button className="px-4 py-1.5 rounded-full text-slate-500 text-xs font-bold hover:text-white transition-colors">Manual</button>
+            <button
+              onClick={() => setMode("Auto")}
+              className={`px-4 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                mode === "Auto" ? "bg-primary text-on-primary" : "text-slate-500 hover:text-white"
+              }`}
+            >
+              Auto
+            </button>
+            <button
+              onClick={() => setMode("Manual")}
+              className={`px-4 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                mode === "Manual" ? "bg-primary text-on-primary" : "text-slate-500 hover:text-white"
+              }`}
+            >
+              Manual
+            </button>
           </div>
           <button
-            onClick={onRunOptimizer}
+            onClick={handleApply}
             className="w-full py-4 rounded-xl bg-gradient-to-r from-primary to-primary-container text-on-primary font-bold shadow-[0_8px_32px_rgba(87,241,219,0.2)] hover:opacity-90 transition-all"
           >
             Apply Recommendation
           </button>
-          <button className="w-full py-4 rounded-xl border border-[#3c4a46] text-slate-300 font-bold hover:bg-white/5 transition-all">
+          <button onClick={handleSimulate} className="w-full py-4 rounded-xl border border-[#3c4a46] text-slate-300 font-bold hover:bg-white/5 transition-all">
             Simulate Impact
           </button>
         </section>

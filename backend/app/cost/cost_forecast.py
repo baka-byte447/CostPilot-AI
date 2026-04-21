@@ -28,4 +28,7 @@ def forecast_cost(db):
         "predicted_requests": request_load,
         "required_instances": instances,
         "predicted_hourly_cost": cost,
+        "cpu_forecast": cpu_forecast,
+        "memory_forecast": memory_forecast,
+        "request_forecast": request_forecast,
     }

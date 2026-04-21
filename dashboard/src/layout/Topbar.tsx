@@ -11,6 +11,7 @@ export default function Topbar({ onRunOptimizer, onLoadAll }: TopbarProps) {
     active: false,
     remaining: 0,
   });
+  const [activeEnv, setActiveEnv] = useState("Production");
 
   useEffect(() => {
     checkCooldown();
@@ -30,6 +31,16 @@ export default function Topbar({ onRunOptimizer, onLoadAll }: TopbarProps) {
     } catch {}
   }
 
+  const handleHistory = () => {
+    onLoadAll();
+    alert("History reloaded from the backend!");
+  };
+
+  const handleSimulate = () => {
+    onRunOptimizer();
+    alert("Simulation request sent!");
+  };
+
   return (
     <header className="fixed top-0 right-0 left-64 h-14 bg-[#10131a]/80 backdrop-blur-xl border-b border-[#3cddc7]/10 flex items-center justify-between px-8 z-40">
       <div className="flex items-center gap-6">
@@ -41,10 +52,18 @@ export default function Topbar({ onRunOptimizer, onLoadAll }: TopbarProps) {
             type="text"
           />
         </div>
-        <nav className="flex items-center gap-5 text-sm font-medium">
-          <a className="text-[#57f1db] border-b border-[#57f1db] pb-0.5" href="#">Production</a>
-          <a className="text-slate-500 hover:text-[#57f1db] transition-colors" href="#">Staging</a>
-          <a className="text-slate-500 hover:text-[#57f1db] transition-colors" href="#">Dev</a>
+        <nav className="flex items-center gap-5 text-sm font-medium cursor-pointer">
+          {["Production", "Staging", "Dev"].map((env) => (
+            <span
+              key={env}
+              onClick={() => setActiveEnv(env)}
+              className={`transition-colors ${
+                activeEnv === env ? "text-[#57f1db] border-b border-[#57f1db] pb-0.5" : "text-slate-500 hover:text-[#57f1db]"
+              }`}
+            >
+              {env}
+            </span>
+          ))}
         </nav>
       </div>
 
@@ -65,14 +84,14 @@ export default function Topbar({ onRunOptimizer, onLoadAll }: TopbarProps) {
         </div>
 
         <button
-          onClick={onLoadAll}
+          onClick={handleHistory}
           className="px-3 py-1.5 rounded-full border border-[#3c4a46]/20 text-primary text-xs font-semibold hover:bg-primary/10 transition-all"
         >
           History
         </button>
 
         <button
-          onClick={onRunOptimizer}
+          onClick={handleSimulate}
           className="px-3 py-1.5 rounded-full bg-primary text-on-primary text-xs font-bold hover:brightness-110 transition-all"
         >
           Simulate
