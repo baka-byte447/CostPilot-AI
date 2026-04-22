@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from app.config.database import SessionLocal
 
 router = APIRouter()
+
 
 def get_db():
     db = SessionLocal()
@@ -13,9 +14,13 @@ def get_db():
 
 
 @router.get("/forecast/system")
-def system_forecast(db: Session = Depends(get_db)):
+def system_forecast(
+    db: Session = Depends(get_db),
+    model: str = Query("auto", description="Forecasting model: auto | lstm | prophet"),
+    retrain: bool = Query(False, description="Force LSTM retrain from scratch")
+):
     from app.ml.forecasting_model import forecast_system_metrics
-    return forecast_system_metrics(db)
+    return forecast_system_metrics(db, model=model, retrain=retrain)
 
 
 @router.get("/forecast/cost")
@@ -39,9 +44,19 @@ def rl_aware_forecast(db: Session = Depends(get_db)):
     decision = decide_scaling_with_rl(cpu, memory, req, forecast=forecast)
 
     return {
-        "forecast":  forecast,
-        "decision":  decision,
+        "forecast":            forecast,
+        "decision":            decision,
         "forecast_influenced": decision.get("forecast") is not None
     }
 
 
+@router.post("/forecast/lstm/retrain")
+def retrain_lstm(db: Session = Depends(get_db)):
+    from app.ml.forecasting_model import forecast_system_metrics
+    return forecast_system_metrics(db, model="lstm", retrain=True)
+
+
+@router.get("/forecast/db/cleanup")
+def run_db_cleanup():
+    from app.utils.cleanup_db import cleanup_negative_metrics
+    return cleanup_negative_metrics()

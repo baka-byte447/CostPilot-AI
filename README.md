@@ -109,14 +109,23 @@ Custom Prometheus metrics exposed at `/app_metrics` (request counts via middlewa
 
 ---
 
-### 🤖 ML Forecasting (Prophet)
+### 🤖 ML Forecasting (LSTM + Prophet)
 
 Time-series forecasting of infrastructure metrics:
 - **CPU usage**
 - **Memory usage**
 - **Request load**
 
-Built with Facebook Prophet — fits models on collected Prometheus data and forecasts 6 periods ahead (30-minute horizon at 5-minute resolution). Forecast feeds both the cost predictor and dashboard KPI widgets.
+**Primary model — NumPy LSTM**: A pure NumPy single-layer LSTM with full BPTT (backpropagation through time) and gradient clipping. Trains once and persists weights to `rl_models/lstm_<metric>.npz`; subsequent calls load the saved model for instant inference. Autoregressively forecasts 6 steps ahead (30-minute horizon at 5-minute resolution).
+
+**Fallback — Facebook Prophet**: Used as a cold-start fallback when fewer than 21 data rows exist. Automatically selected by the dispatcher.
+
+**Auto-dispatch logic**:
+- `>= 21 rows` → LSTM
+- `< 21 rows` → Prophet
+- LSTM failure → Prophet fallback with log warning
+
+Forecast feeds both the cost predictor and dashboard KPI widgets. The `model_used` and `rows_used` fields are included in all forecast responses.
 
 ---
 
@@ -140,10 +149,34 @@ A custom Q-learning agent trained to determine optimal scaling policies:
 | **Q-Table** | Persisted to `rl_models/q_table.npy` |
 | **Epsilon-greedy** | Exploration decays over training episodes |
 
+**Feedback Loop (fixed)**: The environment now correctly simulates the post-action state transition:
+- `reset()` preserves `current_replicas` across cycles (no longer resets to 2 each tick)
+- `env.step()` calls `_simulate_next_state()` — `scale_up` reduces CPU/memory load proportionally to the new replica ratio; `scale_down` raises them
+- The trainer stores `_last_next_state` from `step()` and uses it as the Bellman next-state in `agent.update()`, giving the agent real transition signal rather than the raw next Prometheus poll
+
 Key files:
 - `backend/app/rl/agent.py` — Q-learning agent
-- `backend/app/rl/environment.py` — RL environment with reward shaping
-- `backend/app/rl/trainer.py` — Training loop + live decision inference
+- `backend/app/rl/environment.py` — RL environment with reward shaping and state simulation
+- `backend/app/rl/trainer.py` — Training loop + live decision inference with corrected feedback loop
+
+---
+
+### 🔒 Data Integrity & Metric Sanitization
+
+Negative CPU values from Prometheus corrupted RL training states and LSTM training data. A three-layer sanitization pipeline was added:
+
+| Layer | Location | Action |
+|---|---|---|
+| **Ingestion clamp** | `metrics_service.py` | `_clamp()` applied before DB write — CPU/memory clamped to `[0, 100]`, request_load to `[0, ∞)`. Logs a warning when clamping fires |
+| **Read-time clamp** | `data_loader.py` | Clamped again on DB read before passing to LSTM/Prophet |
+| **Agent guard** | `agent.py → get_state_index()` | `max(0.0, ...)` applied to all inputs before bucketing — prevents negative Q-table indices |
+| **One-shot cleanup** | `utils/cleanup_db.py` | Zeroed **77 existing corrupt rows** in `metrics.db` on first run |
+
+The root cause: `rate(node_cpu_seconds_total{mode="idle"}[1m])` returns `NaN` or `>1.0` on Node Exporter cold-start, causing the CPU query to produce negative values. Clamping at ingestion prevents this from ever reaching the DB again.
+
+**Ops endpoints added:**
+- `GET /forecast/db/cleanup` — re-runs the cleanup script via API
+- `POST /forecast/lstm/retrain` — forces LSTM weight retrain from latest DB data
 
 ---
 
@@ -321,8 +354,8 @@ Dashboard available at `http://localhost:5173`
 |---|---|
 | **Backend** | FastAPI, Uvicorn, SQLAlchemy |
 | **Monitoring** | Prometheus, Node Exporter, prometheus-client |
-| **ML / Forecasting** | Facebook Prophet, Scikit-Learn, Pandas, NumPy |
-| **Reinforcement Learning** | Custom Q-Learning (NumPy) |
+| **ML / Forecasting** | NumPy LSTM (BPTT), Facebook Prophet (fallback), Pandas |
+| **Reinforcement Learning** | Custom Q-Learning (NumPy) with corrected feedback loop |
 | **LLM Explainability** | Groq API (LLaMA 3-8B) + rule-based fallback |
 | **Cloud — AWS** | boto3 + LocalStack (ASG, ECS, EKS, Cost Explorer) |
 | **Cloud — Azure** | azure-mgmt-compute, azure-mgmt-containerinstance, azure-mgmt-costmanagement |
@@ -335,7 +368,10 @@ Dashboard available at `http://localhost:5173`
 
 ## Roadmap
 
-- [ ] LSTM / Transformer-based forecasting to replace Prophet
+- [x] LSTM forecasting model (pure NumPy, BPTT, auto-dispatch with Prophet fallback)
+- [x] RL feedback loop — corrected state transition with environment simulation
+- [x] Negative CPU data sanitization — clamp at ingestion, read-time, and agent layer
+- [ ] Transformer-based forecasting (multi-head attention over LSTM)
 - [ ] Grafana dashboards for historical metric exploration
 - [ ] Distributed RL training with experience replay
 - [ ] Anomaly detection with alerting
