@@ -1,8 +1,8 @@
 from app.ml.forecasting_model import forecast_system_metrics
 from app.cost.cost_model import estimate_instances, calculate_cost
 
-def forecast_cost(db):
-    predictions = forecast_system_metrics(db)
+def forecast_cost(db, user_id: int = None):
+    predictions = forecast_system_metrics(db, user_id)
 
     if "error" in predictions:
         return {

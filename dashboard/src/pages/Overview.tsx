@@ -37,6 +37,7 @@ export default function Overview({ onNavigate, onRunOptimizer }: OverviewProps) 
     forecast: "—",
     forecastSub: "Prophet model",
     decisionTime: "—",
+    isSimulated: false,
   });
 
   const [awsRows, setAwsRows] = useState<any[]>([]);
@@ -79,6 +80,7 @@ export default function Overview({ onNavigate, onRunOptimizer }: OverviewProps) 
         next.cpu = last.cpu_usage.toFixed(1) + "%";
         next.cpuSub = `memory: ${last.memory_usage.toFixed(1)}%`;
         next.mem = last.memory_usage.toFixed(1) + "%";
+        next.isSimulated = last.is_simulated;
       }
 
       if (d?.decision) {
@@ -168,6 +170,20 @@ export default function Overview({ onNavigate, onRunOptimizer }: OverviewProps) 
         </div>
         <div className="text-[10px] font-mono text-slate-600 uppercase">{lastUpdated}</div>
       </header>
+
+      {kpis.isSimulated && (
+        <div className="mb-6 p-4 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-start gap-3">
+          <span className="material-symbols-outlined text-orange-400 mt-0.5">warning</span>
+          <div>
+            <h4 className="text-orange-400 font-bold text-sm">Simulated Data Mode</h4>
+            <p className="text-orange-400/80 text-xs mt-1 leading-relaxed">
+              We could not find active resources or metrics in your connected cloud account (e.g. no EC2 instances running or no CloudWatch metrics available). 
+              To keep the dashboard engaging and demonstrate the RL agent's capabilities, we are showing <strong>simulated realistic metrics</strong>. 
+              Once your real cloud resources begin generating metrics, this warning will disappear.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* KPI Row */}
       <div className="grid grid-cols-5 gap-5 mb-8">

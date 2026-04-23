@@ -63,8 +63,8 @@ def forecast_metric_prophet(df, column: str, steps: int = 6) -> list:
     ]
 
 
-def forecast_system_metrics(db, model: str = "auto", retrain: bool = False) -> dict:
-    df = load_metrics_dataframe(db)
+def forecast_system_metrics(db, user_id: int = None, model: str = "auto", retrain: bool = False) -> dict:
+    df = load_metrics_dataframe(db, user_id)
 
     if df.empty or len(df) < 2:
         return {"error": "Not enough data collected yet"}

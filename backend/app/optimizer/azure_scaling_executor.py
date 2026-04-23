@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 class AzureScalingExecutor:
 
-    def execute(self, decision: dict) -> dict:
+    def execute(self, decision: dict, creds: dict = None) -> dict:
         action        = decision.get("action")
         resource_type = decision.get("resource_type")
         target        = decision.get("target", {})
@@ -16,18 +16,18 @@ class AzureScalingExecutor:
 
         try:
             if resource_type == "vmss":
-                return self._handle_vmss(action, target, params)
+                return self._handle_vmss(action, target, params, creds)
             elif resource_type == "aci":
-                return self._handle_aci(action, target, params)
+                return self._handle_aci(action, target, params, creds)
             else:
                 return {"success": False, "error": f"Unknown resource_type: {resource_type}"}
         except Exception as e:
             logger.error(f"Azure execution failed: {e}", exc_info=True)
             return {"success": False, "error": str(e)}
 
-    def _handle_vmss(self, action: str, target: dict, params: dict) -> dict:
+    def _handle_vmss(self, action: str, target: dict, params: dict, creds: dict = None) -> dict:
         from app.azure import get_vmss_ctrl
-        ctrl = get_vmss_ctrl()
+        ctrl = get_vmss_ctrl(creds)
         vmss_name = target.get("vmss_name", os.getenv("AZURE_VMSS_NAME", "nimbusopt-vmss"))
         if action == "scale_up":
             result = ctrl.scale_up(vmss_name, params.get("increment", 1))
@@ -43,9 +43,9 @@ class AzureScalingExecutor:
             return {"success": False, "error": f"Unknown VMSS action: {action}"}
         return {"success": True, "resource_type": "vmss", **result}
 
-    def _handle_aci(self, action: str, target: dict, params: dict) -> dict:
+    def _handle_aci(self, action: str, target: dict, params: dict, creds: dict = None) -> dict:
         from app.azure import get_aci_ctrl
-        ctrl = get_aci_ctrl()
+        ctrl = get_aci_ctrl(creds)
         if action == "scale_up":
             result = ctrl.scale_up(
                 increment=params.get("increment", 1),

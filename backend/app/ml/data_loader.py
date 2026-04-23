@@ -3,8 +3,11 @@ from sqlalchemy.orm import Session
 from app.models.metrics_model import Metrics
 
 
-def load_metrics_dataframe(db: Session) -> pd.DataFrame:
-    data = db.query(Metrics).all()
+def load_metrics_dataframe(db: Session, user_id: int = None) -> pd.DataFrame:
+    query = db.query(Metrics)
+    if user_id is not None:
+        query = query.filter_by(user_id=user_id)
+    data = query.all()
     rows = [
         {
             "timestamp":    item.timestamp,

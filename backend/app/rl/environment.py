@@ -36,7 +36,7 @@ class CloudEnvironment:
 
         return self.state.copy()
 
-    def step(self, action: int):
+    def step(self, action: int, creds: dict = None):
         cpu = self.state[0]
         memory = self.state[1]
         requests = self.state[2]
@@ -84,7 +84,7 @@ class CloudEnvironment:
         reward = -cost - over_provision_penalty - under_provision_penalty + efficiency_bonus + forecast_bonus
 
         if AWS_MODE:
-            result = aws_executor.execute(self._map_action_to_aws(action))
+            result = aws_executor.execute(self._map_action_to_aws(action), creds)
             if not result.get("success"):
                 reward -= 10
 

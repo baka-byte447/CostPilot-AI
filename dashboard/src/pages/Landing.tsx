@@ -74,8 +74,13 @@ export default function Landing({ onNavigate }: Props) {
         {/* ── HERO ── */}
         <section id="hero" style={{ maxWidth: 1280, margin: "0 auto", padding: "6rem 1.5rem 4rem", display: "flex", flexWrap: "wrap", gap: "4rem", alignItems: "center" }}>
           <div style={{ flex: "1 1 400px" }}>
-            <div className="lp-section-label" style={{ background: "rgba(115,46,228,.08)", border: "1px solid rgba(115,46,228,.2)", color: TERTIARY }}>
-              <span className="ms">auto_awesome</span> AI-Powered Optimization
+            <div style={{ display: "flex", gap: "12px", marginBottom: "1.5rem", flexWrap: "wrap" }}>
+              <div className="lp-section-label" style={{ background: "rgba(115,46,228,.08)", border: "1px solid rgba(115,46,228,.2)", color: TERTIARY, margin: 0 }}>
+                <span className="ms">auto_awesome</span> AI-Powered Optimization
+              </div>
+              <div className="lp-section-label" style={{ background: "rgba(0,104,122,.08)", border: "1px solid rgba(0,104,122,.2)", color: PRIMARY, margin: 0 }}>
+                v1.1: Multi-Tenant RL & Auth Fixes Live
+              </div>
             </div>
             <h1 style={{ fontFamily: "'Manrope',sans-serif", fontSize: "clamp(2.5rem,5.5vw,4.25rem)", fontWeight: 900, lineHeight: 1.08, color: "#191c1e", marginBottom: "1.5rem" }}>
               The Cloud Spending<br /><span style={{ color: PRIMARY }}>Revolution</span>

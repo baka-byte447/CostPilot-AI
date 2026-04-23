@@ -19,8 +19,11 @@ def get_rl_stats():
         return {"error": str(e)}
 
 
+from app.core.deps import get_current_user
+from app.models.user_model import User
+
 @router.get("/decision/latest")
-def get_latest_decision():
+def get_latest_decision(current_user: User = Depends(get_current_user)):
     try:
         from app.services.metrics_service import fetch_prometheus_data
         from app.services.metrics_service import CPU_QUERY, MEMORY_QUERY, REQUEST_QUERY
@@ -31,7 +34,14 @@ def get_latest_decision():
         memory = fetch_prometheus_data(MEMORY_QUERY)
         req    = fetch_prometheus_data(REQUEST_QUERY)
 
-        decision = decide_scaling_with_rl(cpu, memory, req)
+        db = next(get_db())
+        from app.api.credentials import load_user_credentials
+        import os
+        AZURE_MODE = os.getenv("AZURE_MODE", "false").lower() == "true"
+        provider = "azure" if AZURE_MODE else "aws"
+        creds = load_user_credentials(current_user.id, provider, db)
+
+        decision = decide_scaling_with_rl(current_user.id, cpu, memory, req, forecast=None, creds=creds)
         explanation = explain_decision(decision)
 
         return {"status": "ok", "decision": decision, "explanation": explanation}
@@ -40,10 +50,10 @@ def get_latest_decision():
 
 
 @router.get("/explanation/latest")
-def get_latest_explanation():
+def get_latest_explanation(current_user: User = Depends(get_current_user)):
     try:
-        from app.workers.metrics_collector import get_last_explanation
-        explanation = get_last_explanation()
+        from app.workers.user_metrics_collector import get_last_explanation
+        explanation = get_last_explanation(current_user.id)
         if not explanation:
             return {"status": "no_explanation_yet"}
         return {"status": "ok", "explanation": explanation}

@@ -25,7 +25,7 @@ def _get_forecast(db: Session) -> dict:
         return {"forecast_available": False}
 
 
-def run_rl_decision(metrics: dict, forecast: dict = None):
+def run_rl_decision(metrics: dict, forecast: dict = None, creds: dict = None):
     global _last_explanation
     try:
         from app.rl.trainer import decide_scaling_with_rl
@@ -35,7 +35,8 @@ def run_rl_decision(metrics: dict, forecast: dict = None):
             cpu=metrics["cpu_usage"],
             memory=metrics["memory_usage"],
             request_load=metrics["request_load"],
-            forecast=forecast
+            forecast=forecast,
+            creds=creds
         )
 
         forecast_info = ""
@@ -57,7 +58,7 @@ def run_rl_decision(metrics: dict, forecast: dict = None):
         logger.info(f"Explanation [{explanation['source']}]: {explanation['explanation'][:80]}...")
 
         if AZURE_MODE:
-            _dispatch_azure(decision)
+            _dispatch_azure(decision, creds)
 
         return decision
 
@@ -66,7 +67,7 @@ def run_rl_decision(metrics: dict, forecast: dict = None):
         return None
 
 
-def _dispatch_azure(decision: dict):
+def _dispatch_azure(decision: dict, creds: dict = None):
     try:
         from app.optimizer.azure_scaling_executor import azure_executor
         result = azure_executor.execute({
@@ -74,7 +75,7 @@ def _dispatch_azure(decision: dict):
             "resource_type": "aci",
             "target":        {},
             "params":        {"increment": 1, "decrement": 1}
-        })
+        }, creds)
         if result.get("success"):
             logger.info(f"Azure action applied: {result.get('action')} on ACI")
         else:
@@ -93,7 +94,24 @@ def job():
             f"REQ={metrics['request_load']:.4f}"
         )
         forecast = _get_forecast(db)
-        run_rl_decision(metrics, forecast)
+
+        # Single-tenant approach: grab the first user's credentials
+        from app.models.user_model import User
+        from app.api.credentials import load_user_credentials
+        
+        user = db.query(User).first()
+        creds = None
+        if user:
+            provider = "azure" if AZURE_MODE else "aws"
+            creds = load_user_credentials(user.id, provider, db)
+            if creds:
+                logger.info(f"Loaded {provider} credentials for user {user.email}")
+            else:
+                logger.warning(f"User {user.email} has no {provider} credentials. Falling back to .env.")
+        else:
+            logger.warning("No users registered. Falling back to .env credentials.")
+
+        run_rl_decision(metrics, forecast, creds)
     except Exception as e:
         logger.error(f"Collector job failed: {e}", exc_info=True)
     finally:

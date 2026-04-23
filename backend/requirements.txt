@@ -18,3 +18,8 @@ azure-mgmt-containerinstance==10.1.0
 azure-mgmt-monitor==6.0.1
 azure-mgmt-costmanagement==3.0.0
 azure-mgmt-resource==23.0.1
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+cryptography
+email-validator

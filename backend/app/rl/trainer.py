@@ -4,15 +4,11 @@ from app.rl.agent import QLearningAgent
 _env = CloudEnvironment()
 _agent = QLearningAgent()
 
-_last_metrics = {"cpu": None, "memory": None, "request_load": None}
-_last_action = None
-_last_reward = None
-_last_next_state = None
+_last_metrics_dict = {}
+_last_action_dict = {}
+_last_reward_dict = {}
 
-
-def decide_scaling_with_rl(cpu: float, memory: float, request_load: float, forecast: dict = None) -> dict:
-    global _last_metrics, _last_action, _last_reward, _last_next_state
-
+def decide_scaling_with_rl(user_id: int, cpu: float, memory: float, request_load: float, forecast: dict = None, creds: dict = None) -> dict:
     from app.optimizer.safety_engine import check_action
 
     _env.reset(cpu, memory, request_load, forecast=forecast)
@@ -32,27 +28,34 @@ def decide_scaling_with_rl(cpu: float, memory: float, request_load: float, forec
     safe_action = safety["safe_action"]
     safe_action_idx = {v: k for k, v in action_names.items()}[safe_action]
 
-    next_state, reward, replicas = _env.step(safe_action_idx)
+    next_state, reward, replicas = _env.step(safe_action_idx, creds)
 
     if safety["blocked"]:
         reward -= 2
 
-    if _last_metrics["cpu"] is not None and _last_next_state is not None:
+    # Initialize dicts for new users
+    if user_id not in _last_metrics_dict:
+        _last_metrics_dict[user_id] = {"cpu": None, "memory": None, "request_load": None}
+        _last_action_dict[user_id] = None
+        _last_reward_dict[user_id] = None
+
+    _last_metrics = _last_metrics_dict[user_id]
+
+    if _last_metrics["cpu"] is not None:
         _agent.update(
             cpu=_last_metrics["cpu"],
             memory=_last_metrics["memory"],
             request_load=_last_metrics["request_load"],
-            action=_last_action,
-            reward=_last_reward,
-            next_cpu=float(_last_next_state[0]),
-            next_memory=float(_last_next_state[1]),
-            next_request_load=float(_last_next_state[2])
+            action=_last_action_dict[user_id],
+            reward=_last_reward_dict[user_id],
+            next_cpu=cpu,
+            next_memory=memory,
+            next_request_load=request_load
         )
 
-    _last_metrics = {"cpu": cpu, "memory": memory, "request_load": request_load}
-    _last_action = safe_action_idx
-    _last_reward = reward
-    _last_next_state = next_state
+    _last_metrics_dict[user_id] = {"cpu": cpu, "memory": memory, "request_load": request_load}
+    _last_action_dict[user_id] = safe_action_idx
+    _last_reward_dict[user_id] = reward
 
     state_idx = _agent.get_state_index(cpu, memory, request_load)
 

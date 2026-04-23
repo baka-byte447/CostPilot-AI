@@ -137,6 +137,16 @@ Forecast feeds both the cost predictor and dashboard KPI widgets. The `model_use
 
 ---
 
+### 👤 User Authentication & Single-Tenant Credentials
+
+A multi-tenant secure cloud credential management system:
+- **Authentication**: JWT-based secure user registration and login (`python-jose`, `passlib`).
+- **Encrypted Credentials**: Users can register and securely input their AWS/Azure credentials (encrypted at rest using `cryptography.fernet`).
+- **Single-Tenant RL Execution**: The RL background workers (`metrics_collector.py`) and API endpoints automatically load the authenticated user's credentials and inject them into the cloud controllers.
+- **Dynamic Cloud Scaling**: The RL agent now executes decisions (scale up/down) using the *user's real infrastructure*, providing true personalized cost optimization.
+
+---
+
 ### 🧠 Reinforcement Learning Optimizer
 
 A custom Q-learning agent trained to determine optimal scaling policies:
@@ -371,6 +381,9 @@ Dashboard available at `http://localhost:5173`
 - [x] LSTM forecasting model (pure NumPy, BPTT, auto-dispatch with Prophet fallback)
 - [x] RL feedback loop — corrected state transition with environment simulation
 - [x] Negative CPU data sanitization — clamp at ingestion, read-time, and agent layer
+- [x] Multi-user authentication & secure credential management (Fixed Passlib bcrypt length bug)
+- [x] Single-tenant RL scaling integration with real user cloud infrastructure (Simulated metrics fully supported per-user)
+- [x] Integrate modernized Landing, Registration, and Login Pages into React dashboard (Fixed Axios interceptor CORS issue)
 - [ ] Transformer-based forecasting (multi-head attention over LSTM)
 - [ ] Grafana dashboards for historical metric exploration
 - [ ] Distributed RL training with experience replay
@@ -378,6 +391,42 @@ Dashboard available at `http://localhost:5173`
 - [ ] Multi-cloud cost comparison and arbitrage
 - [ ] Real-time WebSocket push for dashboard updates
 - [ ] CI/CD pipeline integration
+
+---
+
+## Deployment
+
+The application can be deployed in a production environment using the provided `docker-compose.prod.yml` or deployed to cloud platforms.
+
+### Production Stack
+The production stack removes LocalStack and local Prometheus, relying exclusively on real user cloud credentials:
+- **Backend**: FastAPI (Dockerized)
+- **Database**: PostgreSQL
+- **Session Cache**: Redis
+- **Reverse Proxy**: Nginx
+
+### Options
+
+**1. Railway.app or Render.com (Cheapest/Free)**
+- Connect your GitHub repository.
+- Deploy the `backend/` directory as a Docker container.
+- Add a managed PostgreSQL database.
+- Set the following environment variables:
+  - `DATABASE_URL` (Postgres connection string)
+  - `JWT_SECRET`
+  - `ENCRYPTION_KEY`
+  - `GROQ_API_KEY` (Optional)
+
+**2. VPS Deployment (DigitalOcean/AWS)**
+Clone the repository on your server and run:
+```bash
+docker-compose -f docker-compose.prod.yml up -d --build
+```
+
+**3. Frontend (Vercel)**
+- Connect the `dashboard/` directory to Vercel.
+- Set the Build Command to `npm run build` and Output Directory to `dist`.
+- Set the Environment Variable `VITE_API_URL` to point to your deployed backend API URL.
 
 ---
 

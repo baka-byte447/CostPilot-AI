@@ -6,6 +6,7 @@ import { runOptimizer } from "./services/api";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import CloudSetup from "./pages/CloudSetup";
 import Overview from "./pages/Overview";
 import LiveInfra from "./pages/LiveInfra";
 import Intelligence from "./pages/Intelligence";
@@ -14,12 +15,15 @@ import Governance from "./pages/Governance";
 import Explainability from "./pages/Explainability";
 import Resources from "./pages/Resources";
 
-type AuthPage = "landing" | "login" | "register" | "dashboard";
+type AuthPage = "landing" | "login" | "register" | "cloud-setup" | "dashboard";
 type DashPage = "overview" | "liveinfra" | "intelligence" | "aioptimizer" | "governance" | "explainability" | "resources";
 
 function AppInner() {
   const { user, logout } = useAuth();
-  const [authPage, setAuthPage] = useState<AuthPage>("landing");
+  const [authPage, setAuthPage] = useState<AuthPage>(() => {
+    if (typeof window !== "undefined" && localStorage.getItem("costpilot_token")) return "dashboard";
+    return "landing";
+  });
   const [dashPage, setDashPage] = useState<DashPage>("overview");
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -41,7 +45,14 @@ function AppInner() {
   }
 
   if (authPage === "login") return <Login onNavigate={handleNavigate} />;
-  if (authPage === "register") return <Register onNavigate={handleNavigate} />;
+  if (authPage === "register") return <Register onNavigate={page => {
+    if (page === "dashboard") {
+      setAuthPage("cloud-setup");
+    } else {
+      handleNavigate(page as AuthPage);
+    }
+  }} />;
+  if (authPage === "cloud-setup") return <CloudSetup onNavigate={handleNavigate} />;
 
   if (!user || authPage === "landing") {
     return <Landing onNavigate={handleNavigate} />;

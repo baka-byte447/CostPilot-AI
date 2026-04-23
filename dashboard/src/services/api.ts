@@ -5,6 +5,14 @@ const api = axios.create({
   timeout: 10000,
 })
 
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("costpilot_token");
+  if (token) {
+    config.headers.set("Authorization", `Bearer ${token}`);
+  }
+  return config;
+});
+
 export const fetchMetrics       = () => api.get("/metrics")
 export const fetchForecast      = () => api.get("/forecast/system")
 export const fetchCostForecast  = () => api.get("/forecast/cost")
