@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
-import { fetchSafetyStatus, runOptimizer } from "@/services/api";
+import { fetchSafetyStatus } from "@/services/api";
 
 interface TopbarProps {
   onRunOptimizer: () => void;
   onLoadAll: () => void;
+  user?: { name: string; email: string } | null;
+  onLogout?: () => void;
 }
 
-export default function Topbar({ onRunOptimizer, onLoadAll }: TopbarProps) {
+export default function Topbar({ onRunOptimizer, onLoadAll, user, onLogout }: TopbarProps) {
   const [cooldown, setCooldown] = useState<{ active: boolean; remaining: number }>({
     active: false,
     remaining: 0,
@@ -83,9 +85,13 @@ export default function Topbar({ onRunOptimizer, onLoadAll }: TopbarProps) {
         <span className="material-symbols-outlined text-slate-500 hover:text-primary cursor-pointer transition-colors text-xl">notifications</span>
         <span className="material-symbols-outlined text-slate-500 hover:text-primary cursor-pointer transition-colors text-xl">settings</span>
 
-        <div className="w-7 h-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary text-xs font-bold">
-          AD
-        </div>
+        <button
+          onClick={onLogout}
+          title={user ? `Sign out (${user.email})` : "Sign out"}
+          className="w-7 h-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary text-xs font-bold hover:bg-primary/30 transition-colors cursor-pointer"
+        >
+          {user ? user.name.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase() : "?"}
+        </button>
       </div>
     </header>
   );

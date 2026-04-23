@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>CostPilot | Cloud Cost Optimization</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-bright": "#f7f9fb",
+                        "surface-tint": "#00687a",
+                        "on-primary-fixed-variant": "#004e5c",
+                        "tertiary": "#732ee4",
+                        "outline": "#6e7881",
+                        "primary-fixed": "#acedff",
+                        "error": "#ba1a1a",
+                        "surface-container-highest": "#e0e3e5",
+                        "inverse-on-surface": "#eff1f3",
+                        "surface-container": "#eceef0",
+                        "error-container": "#ffdad6",
+                        "on-tertiary-fixed-variant": "#5a00c6",
+                        "on-tertiary-fixed": "#25005a",
+                        "tertiary-container": "#ad85ff",
+                        "on-secondary": "#ffffff",
+                        "secondary-container": "#d0e1fb",
+                        "surface-dim": "#d8dadc",
+                        "on-primary-fixed": "#001f26",
+                        "surface-container-high": "#e6e8ea",
+                        "primary": "#00687a",
+                        "surface-container-low": "#f2f4f6",
+                        "secondary-fixed-dim": "#b7c8e1",
+                        "on-secondary-container": "#54647a",
+                        "on-primary": "#ffffff",
+                        "on-secondary-fixed-variant": "#38485d",
+                        "primary-container": "#00aac6",
+                        "outline-variant": "#bec8d2",
+                        "inverse-primary": "#4cd7f6",
+                        "on-primary-container": "#003944",
+                        "tertiary-fixed": "#eaddff",
+                        "on-surface": "#191c1e",
+                        "on-background": "#191c1e",
+                        "on-secondary-fixed": "#0b1c30",
+                        "on-error-container": "#93000a",
+                        "tertiary-fixed-dim": "#d2bbff",
+                        "on-tertiary-container": "#420095",
+                        "secondary-fixed": "#d3e4fe",
+                        "primary-fixed-dim": "#4cd7f6",
+                        "on-surface-variant": "#3e4850",
+                        "background": "#f7f9fb",
+                        "on-error": "#ffffff",
+                        "secondary": "#505f76",
+                        "inverse-surface": "#2d3133",
+                        "surface-variant": "#e0e3e5",
+                        "surface-container-lowest": "#ffffff",
+                        "surface": "#f7f9fb",
+                        "on-tertiary": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Manrope"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+        }
+        .ambient-shadow {
+            box-shadow: 0 8px 24px rgba(0, 104, 122, 0.08);
+        }
+        .hero-gradient {
+            background: linear-gradient(135deg, #00687a 0%, #00aac6 100%);
+        }
+    </style>
+</head>
+<body class="bg-surface font-body text-on-surface selection:bg-primary/20">
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-50 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-sm dark:shadow-none">
+<div class="flex justify-between items-center w-full px-6 py-4 max-w-7xl mx-auto">
+<div class="text-xl font-bold text-cyan-900 dark:text-cyan-100 font-headline tracking-tight">CostPilot</div>
+<div class="hidden md:flex items-center gap-8 font-manrope tracking-tight text-sm font-semibold">
+<a class="text-cyan-700 dark:text-cyan-400 border-b-2 border-cyan-700 dark:border-cyan-400 pb-1" href="#">Intelligence</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-cyan-600 dark:hover:text-cyan-300 transition-colors" href="#">Features</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-cyan-600 dark:hover:text-cyan-300 transition-colors" href="#">Partners</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-cyan-600 dark:hover:text-cyan-300 transition-colors" href="#">Contact</a>
+</div>
+<button class="hero-gradient text-white px-6 py-2.5 rounded-xl font-semibold text-sm hover:scale-[0.98] transition-all active:opacity-80">
+                Get Started
+            </button>
+</div>
+<div class="bg-slate-200/50 dark:bg-slate-800/50 h-[1px] w-full absolute bottom-0"></div>
+</nav>
+<main class="pt-20">
+<!-- Hero Section -->
+<section class="relative overflow-hidden px-6 py-24 md:py-40 max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-16">
+<div class="flex-1 space-y-8 z-10">
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-tertiary-container/10 border border-tertiary/20">
+<span class="material-symbols-outlined text-tertiary text-sm" data-icon="auto_awesome">auto_awesome</span>
+<span class="text-xs font-semibold text-tertiary uppercase tracking-wider">AI-Powered Optimization</span>
+</div>
+<h1 class="text-5xl md:text-7xl font-extrabold font-headline leading-[1.1] text-on-surface tracking-tight">
+                    The Cloud Spending <br/><span class="text-primary">Revolution</span>
+</h1>
+<p class="text-lg md:text-xl text-on-surface-variant max-w-xl leading-relaxed">
+                    Transform your infrastructure from a cost center into a strategic asset. CostPilot uses deep-layer intelligence to curate your cloud spend with architectural precision.
+                </p>
+<div class="flex flex-col sm:flex-row gap-4 pt-4">
+<button class="hero-gradient text-on-primary px-8 py-4 rounded-xl font-bold text-lg ambient-shadow hover:scale-[1.02] transition-transform">
+                        Launch Dashboard
+                    </button>
+<button class="bg-surface-container-highest text-on-surface px-8 py-4 rounded-xl font-bold text-lg hover:bg-surface-container-high transition-colors">
+                        View Demo
+                    </button>
+</div>
+</div>
+<div class="flex-1 relative w-full aspect-square md:aspect-auto h-[500px]">
+<div class="absolute inset-0 bg-gradient-to-tr from-primary/10 to-tertiary/10 rounded-[3rem] rotate-3"></div>
+<div class="absolute inset-0 glass-panel ambient-shadow rounded-[3rem] -rotate-3 overflow-hidden border border-white/40">
+<img alt="Dashboard Preview" class="w-full h-full object-cover opacity-90 mix-blend-multiply" data-alt="Modern sleek data visualization dashboard with soft glowing blue and purple charts on a clean white interface" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCe7MDvA0nTNI2H--UFKGm3dwrKxSbgoV3GDuKqfPQglwt5o1m60d2-sp1WJh6ouzAv-fASMSGV6RHyIqpY1m0PwR1F_HIbFYZ6WT6uyFkAw0ZVTVE8y2KaAsVXOBn2t3Bj24Sl5lRhBcuGjNf388uWt--parJF_0YsGaswJMtrnQ8o18vgBFnVW1aU0zSItjO78GLNTbviv1vidD0YVxbu0feOterk8x6-0H_rbJJupCEf8D1EPkVBHrkBtRMUYBGE53VP4NSBs4iV"/>
+</div>
+</div>
+</section>
+<!-- Cloud Intelligence Section -->
+<section class="bg-surface-container-low py-24">
+<div class="max-w-7xl mx-auto px-6">
+<div class="mb-16">
+<h2 class="text-3xl md:text-4xl font-bold font-headline text-on-surface mb-4">Cloud Intelligence</h2>
+<p class="text-on-surface-variant max-w-2xl">Sophisticated analysis that looks beyond the numbers to provide structural financial wisdom.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Intel Card 1 -->
+<div class="bg-surface-container-lowest p-8 rounded-xl ambient-shadow space-y-4 hover:translate-y-[-4px] transition-transform">
+<div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="monitoring">monitoring</span>
+</div>
+<h3 class="text-xl font-bold font-headline">Predictive Curating</h3>
+<p class="text-sm text-on-surface-variant leading-relaxed">Anticipate scaling costs before they occur using our proprietary behavioral mapping engines.</p>
+</div>
+<!-- Intel Card 2 -->
+<div class="bg-surface-container-lowest p-8 rounded-xl ambient-shadow space-y-4 hover:translate-y-[-4px] transition-transform">
+<div class="w-12 h-12 rounded-xl bg-tertiary/10 flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined" data-icon="psychology">psychology</span>
+</div>
+<h3 class="text-xl font-bold font-headline">Autonomous Insights</h3>
+<p class="text-sm text-on-surface-variant leading-relaxed">AI-driven suggestions that automatically flag redundant instances and orphan resources.</p>
+</div>
+<!-- Intel Card 3 -->
+<div class="bg-surface-container-lowest p-8 rounded-xl ambient-shadow space-y-4 hover:translate-y-[-4px] transition-transform">
+<div class="w-12 h-12 rounded-xl bg-secondary/10 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined" data-icon="account_balance">account_balance</span>
+</div>
+<h3 class="text-xl font-bold font-headline">Fiscal Governance</h3>
+<p class="text-sm text-on-surface-variant leading-relaxed">Professional-grade reporting that aligns engineering spend with executive financial goals.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Features Bento Grid -->
+<section class="py-24 max-w-7xl mx-auto px-6">
+<div class="flex flex-col md:flex-row justify-between items-end gap-8 mb-16">
+<div class="max-w-xl">
+<h2 class="text-4xl font-extrabold font-headline text-on-surface mb-6">Designed for Precision</h2>
+<p class="text-on-surface-variant text-lg">Every feature is crafted to reduce cognitive load while maximizing financial impact.</p>
+</div>
+<button class="text-primary font-bold flex items-center gap-2 hover:gap-3 transition-all">
+                    Explore all features <span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-6 h-auto md:h-[600px]">
+<!-- Large Feature -->
+<div class="md:col-span-8 bg-surface-container-low rounded-[2rem] p-10 flex flex-col justify-between group overflow-hidden relative">
+<div class="z-10">
+<h3 class="text-3xl font-bold font-headline mb-4">Multi-Cloud Orchestration</h3>
+<p class="text-on-surface-variant max-w-md">Unify AWS, Azure, and GCP spend into a single editorial view. No more tab-switching or manual reconciliation.</p>
+</div>
+<div class="mt-8 translate-y-12 group-hover:translate-y-6 transition-transform duration-500">
+<img alt="Platform View" class="rounded-xl shadow-2xl opacity-90" data-alt="Elegant abstract architectural rendering of interconnected glass planes representing cloud network layers" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDiqJrQAzUCkNoLoJkISc2hexEB69Vkxo-lRWkmBLbp1y6kbInAHI85k1Pv3ej5CyF0OacSiJ7KCSVQ1vv--EiSYRv7TLrvkrICVbDc21NzVWl8rS1ShOQV2lNrIQl1fFl9SotCWejD-HvvEcXdYZA0qIEme1uYozQuiecVd4i5XF-G7QaBSMSQ-e4AjVsDLmp2I5ogl_1KQjqJ0Mat2P9gg1rm0QrJaOQVaV-PaPW879myFVMp48-JCE0vwOSSPnAQGXxrRcaOC5FF"/>
+</div>
+</div>
+<!-- Square Feature 1 -->
+<div class="md:col-span-4 bg-tertiary/5 rounded-[2rem] p-10 flex flex-col justify-center items-center text-center space-y-6 border border-tertiary/10">
+<div class="w-16 h-16 rounded-full bg-tertiary-container flex items-center justify-center text-on-tertiary-container shadow-[0_0_20px_rgba(115,46,228,0.3)]">
+<span class="material-symbols-outlined text-3xl" data-icon="bolt">bolt</span>
+</div>
+<div>
+<h3 class="text-2xl font-bold font-headline mb-2">Instant Audit</h3>
+<p class="text-sm text-on-surface-variant">Generate a full compliance and cost audit in under 60 seconds.</p>
+</div>
+</div>
+<!-- Square Feature 2 -->
+<div class="md:col-span-4 bg-primary/5 rounded-[2rem] p-10 flex flex-col justify-center items-center text-center space-y-6 border border-primary/10">
+<div class="w-16 h-16 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container shadow-[0_0_20px_rgba(0,104,122,0.3)]">
+<span class="material-symbols-outlined text-3xl" data-icon="security">security</span>
+</div>
+<div>
+<h3 class="text-2xl font-bold font-headline mb-2">Secure Link</h3>
+<p class="text-sm text-on-surface-variant">Read-only access policies ensure your data is optimized without risk.</p>
+</div>
+</div>
+<!-- Horizontal Small Feature -->
+<div class="md:col-span-8 bg-surface-container-high rounded-[2rem] p-10 flex items-center gap-8">
+<div class="hidden sm:block w-32 h-32 flex-shrink-0 bg-white/50 rounded-2xl flex items-center justify-center">
+<span class="material-symbols-outlined text-5xl text-secondary" data-icon="group_work">group_work</span>
+</div>
+<div>
+<h3 class="text-2xl font-bold font-headline mb-2">Collaborative Budgets</h3>
+<p class="text-on-surface-variant">Empower teams to manage their own cloud budgets with real-time alerts and shared accountability.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Join Us / Network -->
+<section class="bg-primary text-on-primary py-24 overflow-hidden relative">
+<div class="absolute top-0 right-0 w-1/2 h-full opacity-10 pointer-events-none">
+<span class="material-symbols-outlined text-[40rem] rotate-12" data-icon="hub">hub</span>
+</div>
+<div class="max-w-7xl mx-auto px-6 relative z-10 text-center md:text-left flex flex-col md:flex-row items-center justify-between gap-12">
+<div class="max-w-2xl">
+<h2 class="text-4xl md:text-5xl font-extrabold font-headline mb-6">Join the Network</h2>
+<p class="text-primary-fixed-dim text-lg md:text-xl leading-relaxed">
+                        Become part of an elite ecosystem of financial leaders and cloud architects. CostPilot is more than a tool; it's a movement toward fiscal cloud integrity.
+                    </p>
+<div class="mt-10 flex flex-wrap justify-center md:justify-start gap-8">
+<div class="flex items-center gap-3">
+<span class="text-3xl font-bold">500+</span>
+<span class="text-xs uppercase tracking-widest text-primary-fixed">Partners</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="text-3xl font-bold">$2B+</span>
+<span class="text-xs uppercase tracking-widest text-primary-fixed">Optimized</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="text-3xl font-bold">99%</span>
+<span class="text-xs uppercase tracking-widest text-primary-fixed">Retention</span>
+</div>
+</div>
+</div>
+<div class="flex-shrink-0">
+<button class="bg-surface-container-lowest text-primary px-10 py-5 rounded-2xl font-bold text-xl hover:scale-105 transition-transform ambient-shadow">
+                        Partner with Us
+                    </button>
+</div>
+</div>
+</section>
+<!-- Contact Us Section -->
+<section class="py-24 max-w-7xl mx-auto px-6">
+<div class="bg-surface-container-lowest rounded-[3rem] shadow-xl overflow-hidden flex flex-col md:flex-row border border-outline-variant/15">
+<div class="md:w-1/3 bg-surface-container-low p-12 flex flex-col justify-between">
+<div>
+<h2 class="text-3xl font-bold font-headline mb-6">Inquiry</h2>
+<p class="text-on-surface-variant mb-8">Speak with our curators to receive a personalized analysis of your current cloud environment.</p>
+<div class="space-y-6">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="mail">mail</span>
+</div>
+<span class="text-sm font-medium">intelligence@costpilot.com</span>
+</div>
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="call">call</span>
+</div>
+<span class="text-sm font-medium">+1 (800) CLOUD-PILOT</span>
+</div>
+</div>
+</div>
+<div class="mt-12 pt-12 border-t border-outline-variant/30">
+<p class="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-4">Enterprise Grade</p>
+<div class="flex gap-4 opacity-50">
+<span class="material-symbols-outlined" data-icon="verified_user">verified_user</span>
+<span class="material-symbols-outlined" data-icon="cloud_done">cloud_done</span>
+<span class="material-symbols-outlined" data-icon="encrypted">encrypted</span>
+</div>
+</div>
+</div>
+<div class="md:w-2/3 p-12 md:p-16">
+<form action="#" class="space-y-8">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Full Name</label>
+<input class="w-full bg-surface border-none rounded-xl p-4 focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline/40" placeholder="Alexander Hamilton" type="text"/>
+</div>
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Email Address</label>
+<input class="w-full bg-surface border-none rounded-xl p-4 focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline/40" placeholder="alex@company.com" type="email"/>
+</div>
+</div>
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Organization</label>
+<input class="w-full bg-surface border-none rounded-xl p-4 focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline/40" placeholder="Global Infrastructure Corp" type="text"/>
+</div>
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Context or Message</label>
+<textarea class="w-full bg-surface border-none rounded-xl p-4 focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline/40" placeholder="Tell us about your current cloud scale..." rows="4"></textarea>
+</div>
+<button class="hero-gradient text-white w-full py-5 rounded-2xl font-bold text-lg hover:opacity-90 transition-opacity">
+                            Send Request
+                        </button>
+</form>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="w-full py-12 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+<div class="flex flex-col md:flex-row justify-between items-center gap-8 px-8 max-w-7xl mx-auto">
+<div class="space-y-2">
+<div class="font-manrope font-bold text-slate-900 dark:text-slate-100 text-xl">CostPilot</div>
+<div class="font-inter text-xs text-slate-500 dark:text-slate-400">© 2024 CostPilot Intelligence. All rights reserved.</div>
+</div>
+<div class="flex flex-wrap justify-center gap-6 md:gap-12">
+<a class="font-inter text-xs text-slate-500 dark:text-slate-400 hover:text-cyan-600 dark:hover:text-cyan-400 underline decoration-2 transition-all" href="#">Privacy Policy</a>
+<a class="font-inter text-xs text-slate-500 dark:text-slate-400 hover:text-cyan-600 dark:hover:text-cyan-400 underline decoration-2 transition-all" href="#">Terms of Service</a>
+<a class="font-inter text-xs text-slate-500 dark:text-slate-400 hover:text-cyan-600 dark:hover:text-cyan-400 underline decoration-2 transition-all" href="#">Cloud Security</a>
+<a class="font-inter text-xs text-slate-500 dark:text-slate-400 hover:text-cyan-600 dark:hover:text-cyan-400 underline decoration-2 transition-all" href="#">API Documentation</a>
+</div>
+</div>
+</footer>
+</body></html>

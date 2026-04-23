@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { fetchRLExplanation, fetchRLDecision } from "../services/api"
+import { fetchRLExplanation } from "../services/api"
 import { MessageSquare, Cpu, MemoryStick, Zap, RefreshCw } from "lucide-react"
 
 export default function ExplainPanel() {
@@ -10,9 +10,8 @@ export default function ExplainPanel() {
 
   const load = async () => {
     try {
-      const [e, d] = await Promise.allSettled([
+      const [e] = await Promise.allSettled([
         fetchRLExplanation(),
-        fetchRLDecision(),
       ])
 
       if (e.status === "fulfilled" && e.value.data?.explanation) {

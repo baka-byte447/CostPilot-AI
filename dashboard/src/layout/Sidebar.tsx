@@ -2,6 +2,7 @@ interface SidebarProps {
   setPage: (page: string) => void;
   currentPage: string;
   onRunOptimizer: () => void;
+  onLogout?: () => void;
 }
 
 const navItems = [
@@ -14,7 +15,7 @@ const navItems = [
   { id: "resources", icon: "cloud", label: "Resources", group: "Infrastructure" },
 ];
 
-export default function Sidebar({ setPage, currentPage, onRunOptimizer }: SidebarProps) {
+export default function Sidebar({ setPage, currentPage, onRunOptimizer, onLogout }: SidebarProps) {
   const groups = ["Platform", "AI Engine", "Infrastructure"];
 
   return (
@@ -51,13 +52,22 @@ export default function Sidebar({ setPage, currentPage, onRunOptimizer }: Sideba
         ))}
       </nav>
 
-      <div className="p-5 border-t border-[#3cddc7]/10">
+      <div className="p-5 border-t border-[#3cddc7]/10 space-y-2">
         <button
           onClick={onRunOptimizer}
           className="w-full py-3 rounded-full bg-gradient-to-r from-primary to-primary-container text-on-primary font-bold text-sm shadow-[0_0_20px_rgba(87,241,219,0.25)] hover:opacity-90 active:scale-95 transition-all"
         >
           Apply Changes
         </button>
+        {onLogout && (
+          <button
+            onClick={onLogout}
+            className="w-full py-2 rounded-full border border-[#3c4a46]/30 text-slate-500 hover:text-red-400 hover:border-red-400/30 font-semibold text-xs transition-all flex items-center justify-center gap-1.5"
+          >
+            <span className="material-symbols-outlined text-sm">logout</span>
+            Sign Out
+          </button>
+        )}
       </div>
     </aside>
   );
