@@ -7,6 +7,7 @@ import logging
 
 from app.config.database import engine, Base
 from app.models import metrics_model, user_model
+from app.models import cloud_status_model
 
 from app.api.metrics import router as metrics_router
 from app.api.forecast import router as forecast_router

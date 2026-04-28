@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { useAuth } from "@/context/AuthContext";
+import { fetchAzureVMSSStatus, saveAzureCredentials, validateAzureVMSS } from "@/services/api";
 
 const API = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
@@ -15,12 +16,29 @@ export default function CloudSetup({ onNavigate }: Props) {
   const { token } = useAuth();
   const [provider, setProvider] = useState<Provider>(null);
   const [awsForm, setAwsForm] = useState({ access_key_id: "", secret_access_key: "", region: "us-east-1", endpoint_url: "" });
-  const [azureForm, setAzureForm] = useState({ client_id: "", client_secret: "", tenant_id: "", subscription_id: "", resource_group: "costpilot-rg", location: "eastus" });
+  const [azureForm, setAzureForm] = useState({ client_id: "", client_secret: "", tenant_id: "", subscription_id: "", resource_group: "costpilot-rg", location: "eastus", vmss_name: "" });
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [azureStatus, setAzureStatus] = useState<any>(null);
+  const [validating, setValidating] = useState(false);
 
   const headers = { Authorization: `Bearer ${token}` };
+  const azureReady = useMemo(() => !!azureForm.subscription_id && !!azureForm.tenant_id && !!azureForm.client_id && !!azureForm.client_secret && !!azureForm.resource_group && !!azureForm.vmss_name, [azureForm]);
+
+  useEffect(() => {
+    if (!token) return;
+    refreshAzureStatus();
+  }, [token]);
+
+  async function refreshAzureStatus() {
+    try {
+      const res = await fetchAzureVMSSStatus();
+      setAzureStatus(res.data);
+    } catch {
+      setAzureStatus(null);
+    }
+  }
 
   async function saveAWS(e: React.FormEvent) {
     e.preventDefault();
@@ -44,12 +62,33 @@ export default function CloudSetup({ onNavigate }: Props) {
     e.preventDefault();
     setSaving(true); setError(null); setSuccess(null);
     try {
-      await axios.post(`${API}/credentials/azure`, azureForm, { headers });
-      setSuccess("Azure credentials saved and encrypted successfully.");
+      await saveAzureCredentials(azureForm);
+      setSuccess("Azure VMSS connected. Next: validate permissions to enable live Azure Monitor metrics.");
+      await refreshAzureStatus();
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) setError(err.response?.data?.detail ?? "Failed to save Azure credentials.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function validateAzure() {
+    setValidating(true); setError(null); setSuccess(null);
+    try {
+      const res = await validateAzureVMSS();
+      setSuccess(`Validation passed. Live metrics enabled for ${res.data?.vmss?.resource_group}/${res.data?.vmss?.name}.`);
+      await refreshAzureStatus();
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        const d: any = err.response?.data?.detail;
+        if (typeof d === "string") setError(d);
+        else setError(d?.message ?? "Validation failed.");
+      } else {
+        setError("Validation failed.");
+      }
+      await refreshAzureStatus();
+    } finally {
+      setValidating(false);
     }
   }
 
@@ -174,6 +213,56 @@ export default function CloudSetup({ onNavigate }: Props) {
             <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: "1.1rem", marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: 8 }}>
               <span className="ms" style={{ color: PRIMARY }}>key</span> Azure Service Principal
             </h2>
+
+            {/* Connected resource summary */}
+            <div style={{ marginBottom: "1.25rem", padding: "1rem", borderRadius: ".75rem", background: "rgba(0,107,95,.04)", border: "1px solid rgba(0,107,95,.15)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: ".68rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#3c4a46" }}>Monitoring target</div>
+                  <div style={{ marginTop: 6, fontFamily: "'Manrope',sans-serif", fontWeight: 900, fontSize: "1rem", color: "#191c1e" }}>
+                    VM Scale Set (VMSS)
+                  </div>
+                  <div style={{ marginTop: 4, fontSize: ".82rem", color: "#3c4a46" }}>
+                    {azureStatus?.vmss?.resource_group && azureStatus?.vmss?.name
+                      ? <span><strong>{azureStatus.vmss.resource_group}</strong> / <strong>{azureStatus.vmss.name}</strong></span>
+                      : <span>Not configured yet</span>}
+                  </div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: ".68rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#3c4a46" }}>Status</div>
+                  <div style={{
+                    marginTop: 6,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: ".35rem .6rem",
+                    borderRadius: "999px",
+                    fontSize: ".72rem",
+                    fontWeight: 800,
+                    background: azureStatus?.status === "ok" ? "rgba(34,197,94,.10)" : azureStatus?.status === "degraded" ? "rgba(245,158,11,.12)" : "rgba(148,163,184,.18)",
+                    color: azureStatus?.status === "ok" ? "#16a34a" : azureStatus?.status === "degraded" ? "#b45309" : "#334155",
+                    border: "1px solid rgba(25,28,30,.08)"
+                  }}>
+                    <span className="ms" style={{ fontSize: 16 }}>{azureStatus?.status === "ok" ? "check_circle" : azureStatus?.status === "degraded" ? "warning" : "hourglass_empty"}</span>
+                    {azureStatus?.status ?? "not_configured"}
+                  </div>
+                  <div style={{ marginTop: 8, fontSize: ".74rem", color: "#6b7a76" }}>
+                    Data source: <strong>{azureStatus?.data_source ?? "—"}</strong>
+                  </div>
+                </div>
+              </div>
+              {azureStatus?.last_validation_error && (
+                <div style={{ marginTop: 10, fontSize: ".78rem", color: "#ba1a1a" }}>
+                  <strong>Last validation error:</strong> {String(azureStatus.last_validation_error).slice(0, 220)}
+                </div>
+              )}
+              {azureStatus?.last_metrics_error && (
+                <div style={{ marginTop: 6, fontSize: ".78rem", color: "#b45309" }}>
+                  <strong>Last metrics error:</strong> {String(azureStatus.last_metrics_error).slice(0, 220)}
+                </div>
+              )}
+            </div>
+
             <form onSubmit={saveAzure} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               {[
                 ["Tenant ID", "tenant_id", "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"],
@@ -181,6 +270,7 @@ export default function CloudSetup({ onNavigate }: Props) {
                 ["Client Secret", "client_secret", "••••••••"],
                 ["Subscription ID", "subscription_id", "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"],
                 ["Resource Group", "resource_group", "costpilot-rg"],
+                ["VMSS Name", "vmss_name", "my-production-vmss"],
                 ["Location", "location", "eastus"],
               ].map(([label, field, ph]) => (
                 <div key={field} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
@@ -195,12 +285,54 @@ export default function CloudSetup({ onNavigate }: Props) {
                   />
                 </div>
               ))}
-              <button type="submit" className="cs-btn" disabled={saving}>{saving ? "Saving…" : "Save & Encrypt Azure Credentials"}</button>
+              <button type="submit" className="cs-btn" disabled={saving || !azureReady}>{saving ? "Saving…" : "Save Azure + Select VMSS"}</button>
             </form>
-            <p style={{ marginTop: "1rem", fontSize: ".78rem", color: "#6b7a76", display: "flex", gap: 6, alignItems: "flex-start" }}>
-              <span className="ms" style={{ fontSize: 16, flexShrink: 0 }}>lock</span>
-              Create a Service Principal via: <code style={{ background: "#f2f4f6", padding: "0 6px", borderRadius: 4 }}>az ad sp create-for-rbac --role Contributor</code>
-            </p>
+
+            {/* RBAC checklist */}
+            <div style={{ marginTop: "1.25rem", padding: "1rem", borderRadius: ".75rem", border: "1px solid rgba(186,202,197,.25)", background: "#fff" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <span className="ms" style={{ color: PRIMARY }}>verified_user</span>
+                <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 900 }}>Azure permissions required (VMSS metrics)</div>
+              </div>
+              <ul style={{ margin: 0, paddingLeft: "1.1rem", color: "#3c4a46", fontSize: ".85rem", lineHeight: 1.65 }}>
+                <li><strong>Reader</strong> on the VMSS or Resource Group (read VMSS metadata)</li>
+                <li><strong>Monitoring Reader</strong> on the VMSS or Resource Group (read Azure Monitor metrics)</li>
+              </ul>
+              <div style={{ marginTop: 10, fontSize: ".78rem", color: "#6b7a76" }}>
+                Validation checks VMSS existence + ability to query <code style={{ background: "#f2f4f6", padding: "0 6px", borderRadius: 4 }}>Percentage CPU</code> and network metrics from Azure Monitor.
+              </div>
+              <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <button
+                  onClick={validateAzure}
+                  className="cs-btn"
+                  disabled={validating || saving}
+                  type="button"
+                  style={{ padding: ".9rem 1rem" }}
+                >
+                  {validating ? "Validating…" : "Validate permissions (Retry)"}
+                </button>
+                <button
+                  onClick={refreshAzureStatus}
+                  type="button"
+                  style={{
+                    padding: ".9rem 1rem",
+                    borderRadius: ".75rem",
+                    border: "1px solid rgba(186,202,197,.35)",
+                    background: "#fff",
+                    fontWeight: 800,
+                    cursor: "pointer",
+                    fontFamily: "'Manrope',sans-serif",
+                    color: "#191c1e"
+                  }}
+                >
+                  Refresh status
+                </button>
+              </div>
+              <div style={{ marginTop: 10, fontSize: ".78rem", color: "#6b7a76", display: "flex", gap: 6, alignItems: "flex-start" }}>
+                <span className="ms" style={{ fontSize: 16, flexShrink: 0 }}>lock</span>
+                Tip: avoid granting broad Contributor. For metrics-only dashboards, Reader + Monitoring Reader is usually enough.
+              </div>
+            </div>
           </div>
         )}
 

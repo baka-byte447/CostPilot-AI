@@ -8,15 +8,11 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import CloudSetup from "./pages/CloudSetup";
 import Overview from "./pages/Overview";
-import LiveInfra from "./pages/LiveInfra";
-import Intelligence from "./pages/Intelligence";
 import AIOptimizer from "./pages/AIOptimizer";
-import Governance from "./pages/Governance";
-import Explainability from "./pages/Explainability";
 import Resources from "./pages/Resources";
 
 type AuthPage = "landing" | "login" | "register" | "cloud-setup" | "dashboard";
-type DashPage = "overview" | "liveinfra" | "intelligence" | "aioptimizer" | "governance" | "explainability" | "resources";
+type DashPage = "overview" | "aioptimizer" | "cloud-setup" | "resources";
 
 function AppInner() {
   const { user, logout } = useAuth();
@@ -61,11 +57,15 @@ function AppInner() {
   const renderDashPage = () => {
     switch (dashPage) {
       case "overview":       return <Overview key={refreshKey} onNavigate={p => setDashPage(p as DashPage)} onRunOptimizer={handleRunOptimizer} />;
-      case "liveinfra":      return <LiveInfra key={refreshKey} />;
-      case "intelligence":   return <Intelligence key={refreshKey} />;
       case "aioptimizer":    return <AIOptimizer key={refreshKey} onRunOptimizer={handleRunOptimizer} />;
-      case "governance":     return <Governance key={refreshKey} />;
-      case "explainability": return <Explainability key={refreshKey} />;
+      case "cloud-setup":    return <CloudSetup onNavigate={(p: any) => {
+        if (p === "dashboard") {
+          setAuthPage("dashboard");
+          setDashPage("overview");
+        } else {
+          setAuthPage(p as AuthPage);
+        }
+      }} />;
       case "resources":      return <Resources key={refreshKey} />;
       default:               return <Overview key={refreshKey} onNavigate={p => setDashPage(p as DashPage)} onRunOptimizer={handleRunOptimizer} />;
     }

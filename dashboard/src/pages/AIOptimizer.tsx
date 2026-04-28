@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchRLDecision, fetchRLStats, fetchAWSActions } from "@/services/api";
+import { fetchRLDecision, fetchRLStats } from "@/services/api";
 
 const ACTION_ICONS: Record<string, string> = {
   scale_up: "trending_up",
@@ -14,7 +14,6 @@ interface AIOptimizerProps {
 export default function AIOptimizer({ onRunOptimizer }: AIOptimizerProps) {
   const [decision, setDecision] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
-  const [actions, setActions] = useState<any[]>([]);
 
   useEffect(() => {
     load();
@@ -22,14 +21,12 @@ export default function AIOptimizer({ onRunOptimizer }: AIOptimizerProps) {
 
   async function load() {
     try {
-      const [d, s, a] = await Promise.all([
+      const [d, s] = await Promise.all([
         fetchRLDecision(),
         fetchRLStats(),
-        fetchAWSActions(),
       ]);
       setDecision(d.data);
       setStats(s.data);
-      setActions(a.data || []);
     } catch {}
   }
 
@@ -189,42 +186,12 @@ export default function AIOptimizer({ onRunOptimizer }: AIOptimizerProps) {
           </button>
         </section>
 
-        {/* Scaling History */}
         <section className="col-span-8 bg-[#191c22] rounded-xl p-8 border border-[#3c4a46]/10">
-          <div className="flex items-center justify-between mb-7">
-            <h3 className="text-lg font-bold headline text-white">Scaling History</h3>
-            <span className="text-[10px] font-bold text-slate-500 uppercase">Recent Actions</span>
-          </div>
-          <div className="space-y-4 relative">
-            <div className="absolute left-6 top-2 bottom-2 w-px bg-[#3c4a46]/20"></div>
-            {actions.length === 0 ? (
-              <div className="text-slate-600 text-xs pl-10">Loading actions...</div>
-            ) : (
-              actions.slice(0, 8).map((a: any, i: number) => (
-                <div key={i} className="relative flex items-center gap-6 pl-4">
-                  <div className="relative z-10 w-3 h-3 rounded-full bg-primary ring-4 ring-primary/10 shrink-0"></div>
-                  <div className="flex-1 bg-[#1d2026] p-4 rounded-xl flex items-center justify-between border border-[#3c4a46]/5 hover:border-primary/20 transition-all">
-                    <div className="flex items-center gap-5">
-                      <div>
-                        <div className="text-[10px] text-slate-500 font-bold mb-0.5">{new Date(a.timestamp).toLocaleTimeString()}</div>
-                        <div className="text-sm font-semibold text-white">{a.action?.replace("_", " ")} · {a.target}</div>
-                      </div>
-                      <div className="text-xs text-slate-400">
-                        {a.previous !== undefined ? `${a.previous} → ${a.new}` : ""}
-                      </div>
-                    </div>
-                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
-                      a.action === "scale_up" ? "bg-primary/20 text-primary" :
-                      a.action === "scale_down" ? "bg-amber-400/20 text-amber-400" :
-                      "bg-slate-700 text-slate-400"
-                    }`}>
-                      {a.resource_type}
-                    </span>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+          <h3 className="text-lg font-bold headline text-white mb-3">Operational note</h3>
+          <p className="text-sm text-slate-400 leading-relaxed">
+            This project is currently focused on <span className="text-white font-semibold">Azure VM Scale Sets (VMSS)</span>.
+            Action history is not yet persisted in the backend, so this view shows the live decision + Q-values only.
+          </p>
         </section>
       </div>
     </div>

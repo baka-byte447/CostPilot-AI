@@ -5,7 +5,6 @@ import {
   fetchAzureCost,
   fetchCostForecast,
   fetchRLStats,
-  fetchAWSState
 } from "@/services/api";
 import Chart from "chart.js/auto";
 import { makeGradient } from "@/lib/chartUtils";
@@ -19,6 +18,18 @@ export default function Overview({ onNavigate, onRunOptimizer }: OverviewProps) 
   const chartRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstance = useRef<any>(null);
   const [lastUpdated, setLastUpdated] = useState("");
+
+  function parseApiTime(ts: any): Date | null {
+    if (!ts) return null;
+    if (ts instanceof Date) return ts;
+    if (typeof ts !== "string") return null;
+    // Backend may return naive UTC like "2026-04-27T16:13:09.270668" (no timezone).
+    // Treat naive timestamps as UTC to avoid chart time drift.
+    const hasZone = /([zZ]|[+-]\d{2}:\d{2})$/.test(ts);
+    const normalized = hasZone ? ts : `${ts}Z`;
+    const d = new Date(normalized);
+    return isNaN(d.getTime()) ? null : d;
+  }
 
   const [kpis, setKpis] = useState({
     azureCost: "—",
@@ -37,10 +48,12 @@ export default function Overview({ onNavigate, onRunOptimizer }: OverviewProps) 
     forecast: "—",
     forecastSub: "Prophet model",
     decisionTime: "—",
-    isSimulated: false,
+    status: "not_configured" as "ok" | "degraded" | "error" | "not_configured",
+    dataSource: "—",
+    serviceLabel: "—",
+    lastMetricsAt: "—",
+    degradedReason: "",
   });
-
-  const [awsRows, setAwsRows] = useState<any[]>([]);
 
   useEffect(() => {
     load();
@@ -49,21 +62,20 @@ export default function Overview({ onNavigate, onRunOptimizer }: OverviewProps) 
   }, []);
 
   async function load() {
-    const [m, decision, azure, awsState, forecast, rlStats] = await Promise.all([
+    const [m, decision, azure, forecast, rlStats] = await Promise.all([
       fetchMetrics().catch(() => ({ data: null })),
       fetchRLDecision().catch(() => ({ data: null })),
       fetchAzureCost().catch(() => ({ data: null })),
-      fetchAWSState().catch(() => ({ data: null })),
       fetchCostForecast().catch(() => ({ data: null })),
       fetchRLStats().catch(() => ({ data: null })),
     ]);
 
-    const metrics = m.data;
+    const meta = m.data?.meta ?? null;
+    const metrics = m.data?.metrics ?? [];
     const d = decision.data;
     const az = azure.data;
     const fc = forecast.data;
-    const stats = rlStats.data;
-    const aws = awsState.data;
+    const stats = rlStats?.data;
 
     setKpis((prev) => {
       const next = { ...prev };
@@ -78,9 +90,8 @@ export default function Overview({ onNavigate, onRunOptimizer }: OverviewProps) 
       if (metrics?.length) {
         const last = metrics[metrics.length - 1];
         next.cpu = last.cpu_usage.toFixed(1) + "%";
-        next.cpuSub = `memory: ${last.memory_usage.toFixed(1)}%`;
-        next.mem = last.memory_usage.toFixed(1) + "%";
-        next.isSimulated = last.is_simulated;
+        next.mem = typeof last.memory_usage === "number" ? last.memory_usage.toFixed(1) + "%" : "N/A";
+        next.cpuSub = typeof last.memory_usage === "number" ? `memory: ${last.memory_usage.toFixed(1)}%` : "memory: N/A (guest metrics not enabled)";
       }
 
       if (d?.decision) {
@@ -107,26 +118,27 @@ export default function Overview({ onNavigate, onRunOptimizer }: OverviewProps) 
         next.coverage = stats.coverage_pct ?? 0;
       }
 
+      next.status = meta?.status ?? "not_configured";
+      next.dataSource = meta?.data_source ?? "—";
+      if (meta?.vmss?.resource_group && meta?.vmss?.name) {
+        next.serviceLabel = `${meta.vmss.resource_group}/${meta.vmss.name}`;
+      } else {
+        next.serviceLabel = "No VMSS selected";
+      }
+      const lm = parseApiTime(meta?.last_metrics_at);
+      next.lastMetricsAt = lm ? lm.toLocaleString() : "—";
+      next.degradedReason = meta?.last_metrics_error ?? meta?.last_validation_error ?? "";
+
       return next;
     });
-
-    // AWS rows
-    if (aws) {
-      const rows: any[] = [];
-      (aws.asgs ?? []).forEach((a: any) => rows.push({ type: "ASG", name: a.name, status: "Active", desired: a.desired, max: a.max, color: "primary" }));
-      Object.entries(aws.ecs ?? {}).forEach(([cluster, svcs]: any) => {
-        (svcs as any[]).forEach((s: any) => rows.push({ type: "ECS", name: cluster, status: s.status, desired: s.desired, max: Math.max(s.desired, 1), running: s.running, color: "secondary" }));
-      });
-      setAwsRows(rows);
-    }
 
     // Chart
     if (metrics?.length) {
       const labels = metrics.slice(-20).map((m: any) =>
-        new Date(m.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        (parseApiTime(m.timestamp) ?? new Date(m.timestamp)).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
       );
       const cpuData = metrics.slice(-20).map((m: any) => Math.max(0, m.cpu_usage));
-      const memData = metrics.slice(-20).map((m: any) => m.memory_usage);
+      const memData = metrics.slice(-20).map((m: any) => (typeof m.memory_usage === "number" ? m.memory_usage : null));
 
       if (chartRef.current) {
         const ctx = chartRef.current.getContext("2d")!;
@@ -137,7 +149,7 @@ export default function Overview({ onNavigate, onRunOptimizer }: OverviewProps) 
             labels,
             datasets: [
               { label: "CPU %", data: cpuData, borderColor: "#57f1db", fill: true, backgroundColor: makeGradient(ctx, "#57f1db"), tension: 0.4, pointRadius: 0, borderWidth: 2 },
-              { label: "Memory %", data: memData, borderColor: "#d0bcff", fill: true, backgroundColor: makeGradient(ctx, "#d0bcff"), tension: 0.4, pointRadius: 0, borderWidth: 2 }
+              { label: "Memory %", data: memData, borderColor: "#d0bcff", fill: true, backgroundColor: makeGradient(ctx, "#d0bcff"), tension: 0.4, pointRadius: 0, borderWidth: 2, spanGaps: true }
             ]
           },
           options: {
@@ -167,20 +179,57 @@ export default function Overview({ onNavigate, onRunOptimizer }: OverviewProps) 
         <div>
           <h1 className="text-4xl font-extrabold headline text-white tracking-tighter">Command Center</h1>
           <p className="text-slate-400 mt-1.5 text-sm">Global infrastructure spend & AI optimization metrics</p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase border border-white/10 bg-white/5 text-slate-200">
+              Azure VMSS: <span className="font-mono font-semibold">{kpis.serviceLabel}</span>
+            </span>
+            <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase border ${
+              kpis.status === "ok"
+                ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
+                : kpis.status === "degraded"
+                ? "border-amber-400/20 bg-amber-400/10 text-amber-300"
+                : "border-slate-500/20 bg-slate-500/10 text-slate-300"
+            }`}>
+              {kpis.status === "ok" ? "Live" : kpis.status === "degraded" ? "Degraded" : "Not connected"}
+            </span>
+            <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase border border-primary/20 bg-primary/10 text-primary">
+              Source: {kpis.dataSource}
+            </span>
+            <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase border border-white/10 bg-white/5 text-slate-300">
+              Last metrics: <span className="font-mono">{kpis.lastMetricsAt}</span>
+            </span>
+          </div>
         </div>
         <div className="text-[10px] font-mono text-slate-600 uppercase">{lastUpdated}</div>
       </header>
 
-      {kpis.isSimulated && (
-        <div className="mb-6 p-4 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-start gap-3">
-          <span className="material-symbols-outlined text-orange-400 mt-0.5">warning</span>
-          <div>
-            <h4 className="text-orange-400 font-bold text-sm">Simulated Data Mode</h4>
-            <p className="text-orange-400/80 text-xs mt-1 leading-relaxed">
-              We could not find active resources or metrics in your connected cloud account (e.g. no EC2 instances running or no CloudWatch metrics available). 
-              To keep the dashboard engaging and demonstrate the RL agent's capabilities, we are showing <strong>simulated realistic metrics</strong>. 
-              Once your real cloud resources begin generating metrics, this warning will disappear.
+      {kpis.status !== "ok" && (
+        <div className={`mb-6 p-4 rounded-xl border flex items-start gap-3 ${
+          kpis.status === "degraded" ? "bg-amber-500/10 border-amber-500/20" : "bg-slate-500/10 border-slate-500/20"
+        }`}>
+          <span className={`material-symbols-outlined mt-0.5 ${kpis.status === "degraded" ? "text-amber-400" : "text-slate-300"}`}>warning</span>
+          <div className="flex-1">
+            <h4 className={`font-bold text-sm ${kpis.status === "degraded" ? "text-amber-300" : "text-slate-200"}`}>
+              {kpis.status === "degraded" ? "Degraded Metrics" : "Azure VMSS not connected"}
+            </h4>
+            <p className={`text-xs mt-1 leading-relaxed ${kpis.status === "degraded" ? "text-amber-200/80" : "text-slate-200/80"}`}>
+              {kpis.status === "degraded"
+                ? "We couldn’t fetch fresh Azure Monitor metrics right now. We are keeping the last known good values and showing the reason below."
+                : "Connect an Azure VM Scale Set and validate permissions to see live service metrics on this dashboard."}
             </p>
+            {kpis.degradedReason && (
+              <div className="mt-2 text-[11px] text-slate-200/70 font-mono break-words">
+                {kpis.degradedReason}
+              </div>
+            )}
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={() => onNavigate("cloud-setup")}
+                className="px-4 py-2 rounded-full bg-primary text-on-primary font-extrabold text-xs hover:scale-[1.02] active:scale-[0.98] transition-all"
+              >
+                Open Cloud Setup
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -245,7 +294,9 @@ export default function Overview({ onNavigate, onRunOptimizer }: OverviewProps) 
           <div className="flex justify-between items-center mb-6">
             <div>
               <h3 className="text-lg font-bold headline text-white">Cost vs. Load Correlation</h3>
-              <p className="text-xs text-slate-400 mt-1">Real-time CPU & memory from Prometheus</p>
+              <p className="text-xs text-slate-400 mt-1">
+                Azure Monitor VMSS metrics · CPU is live · Memory may require guest-level monitoring (otherwise N/A)
+              </p>
             </div>
             <div className="flex gap-2">
               <span className="flex items-center gap-1.5 text-[10px] text-slate-500">
@@ -298,63 +349,21 @@ export default function Overview({ onNavigate, onRunOptimizer }: OverviewProps) 
         </div>
       </div>
 
-      {/* Infrastructure Table */}
       <div className="glass-panel rounded-xl overflow-hidden">
-        <div className="p-5 border-b border-[#3c4a46]/15 flex justify-between items-center bg-[#191c22]/50">
-          <h3 className="font-bold headline text-white">AWS Resources (Mock)</h3>
+        <div className="p-6 flex items-center justify-between bg-[#191c22]/50 border-b border-[#3c4a46]/15">
+          <div>
+            <h3 className="font-bold headline text-white">Service details</h3>
+            <p className="text-xs text-slate-400 mt-1">View the selected VMSS and latest captured signals</p>
+          </div>
           <button
             onClick={() => onNavigate("resources")}
-            className="text-xs text-slate-400 hover:text-primary transition-colors flex items-center gap-1"
+            className="text-xs text-slate-300 hover:text-primary transition-colors flex items-center gap-1 px-4 py-2 rounded-full border border-white/10 bg-white/5"
           >
-            View Full Inventory <span className="material-symbols-outlined text-xs">arrow_forward</span>
+            Open Service Page <span className="material-symbols-outlined text-xs">arrow_forward</span>
           </button>
         </div>
-        <div className="p-5">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="text-slate-500 font-bold uppercase text-[9px] tracking-widest border-b border-[#3c4a46]/15">
-                <th className="pb-3">Resource</th>
-                <th className="pb-3">Type</th>
-                <th className="pb-3">Status</th>
-                <th className="pb-3">Capacity</th>
-                <th className="pb-3 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="text-on-surface">
-              {awsRows.length === 0 ? (
-                <tr><td colSpan={5} className="py-6 text-center text-slate-600 text-xs">Loading resources...</td></tr>
-              ) : (
-                awsRows.map((row, i) => (
-                  <tr key={i} className="group hover:bg-[#272a31]/30 transition-all border-b border-[#3c4a46]/5">
-                    <td className="py-3 font-medium flex items-center gap-2">
-                      <div className={`w-1.5 h-1.5 rounded-full ${row.color === "primary" ? "bg-primary" : "bg-secondary"}`}></div>
-                      {row.name}
-                    </td>
-                    <td className="py-3 text-[10px] text-slate-400 uppercase">{row.type}</td>
-                    <td className="py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${row.color === "primary" ? "bg-emerald-400/10 text-emerald-400" : "bg-secondary/10 text-secondary"}`}>
-                        {row.status}
-                      </span>
-                    </td>
-                    <td className="py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-20 bg-[#1d2026] h-1 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full ${row.color === "primary" ? "bg-primary" : "bg-secondary"}`}
-                            style={{ width: Math.round((row.desired / row.max) * 100) + "%" }}
-                          ></div>
-                        </div>
-                        <span className="text-xs text-slate-400">{row.desired}/{row.max}</span>
-                      </div>
-                    </td>
-                    <td className="py-3 text-right">
-                      <span className="material-symbols-outlined text-slate-500 cursor-pointer hover:text-white text-sm">more_vert</span>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="p-6 text-slate-500 text-sm">
+          This dashboard is streamlined for Azure VMSS monitoring. Additional inventory views can be added later if needed.
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { fetchSafetyStatus } from "@/services/api";
+import { fetchAzureVMSSStatus, fetchSafetyStatus } from "@/services/api";
 
 interface TopbarProps {
   onRunOptimizer: () => void;
@@ -13,9 +13,11 @@ export default function Topbar({ onRunOptimizer, onLoadAll, user, onLogout }: To
     active: false,
     remaining: 0,
   });
+  const [azureStatus, setAzureStatus] = useState<any>(null);
 
   useEffect(() => {
     checkCooldown();
+    refreshAzureStatus();
     const interval = setInterval(checkCooldown, 5000);
     return () => clearInterval(interval);
   }, []);
@@ -32,22 +34,46 @@ export default function Topbar({ onRunOptimizer, onLoadAll, user, onLogout }: To
     } catch {}
   }
 
+  async function refreshAzureStatus() {
+    try {
+      const res = await fetchAzureVMSSStatus();
+      setAzureStatus(res.data);
+    } catch {
+      setAzureStatus(null);
+    }
+  }
+
+  const vmssLabel =
+    azureStatus?.vmss?.resource_group && azureStatus?.vmss?.name
+      ? `${azureStatus.vmss.resource_group}/${azureStatus.vmss.name}`
+      : "No VMSS selected";
+  const subId = azureStatus?.vmss?.subscription_id;
+  const subShort = subId ? `${String(subId).slice(0, 8)}…${String(subId).slice(-4)}` : "—";
+  const status = azureStatus?.status ?? "not_configured";
+
   return (
     <header className="fixed top-0 right-0 left-64 h-14 bg-[#10131a]/80 backdrop-blur-xl border-b border-[#3cddc7]/10 flex items-center justify-between px-8 z-40">
       <div className="flex items-center gap-6">
-        <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 text-sm">search</span>
-          <input
-            className="bg-[#1d2026] border-none rounded-full py-1.5 pl-9 pr-4 text-xs w-56 focus:outline-none focus:ring-1 ring-[#57f1db]/30 text-on-surface placeholder:text-slate-600"
-            placeholder="Global search..."
-            type="text"
-          />
+        <div className="flex items-center gap-2 text-[10px] font-bold uppercase">
+          <span className="px-3 py-1 rounded-full border border-white/10 bg-white/5 text-slate-200">
+            VMSS: <span className="font-mono font-semibold normal-case">{vmssLabel}</span>
+          </span>
+          <span className="px-3 py-1 rounded-full border border-white/10 bg-white/5 text-slate-300">
+            Subscription: <span className="font-mono normal-case">{subShort}</span>
+          </span>
+          <span
+            className={`px-3 py-1 rounded-full border text-[10px] font-bold uppercase ${
+              status === "ok"
+                ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
+                : status === "degraded"
+                ? "border-amber-400/20 bg-amber-400/10 text-amber-300"
+                : "border-slate-500/20 bg-slate-500/10 text-slate-300"
+            }`}
+            title={azureStatus?.last_metrics_error ?? azureStatus?.last_validation_error ?? ""}
+          >
+            {status === "ok" ? "Live" : status === "degraded" ? "Degraded" : "Not connected"}
+          </span>
         </div>
-        <nav className="flex items-center gap-5 text-sm font-medium">
-          <a className="text-[#57f1db] border-b border-[#57f1db] pb-0.5" href="#">Production</a>
-          <a className="text-slate-500 hover:text-[#57f1db] transition-colors" href="#">Staging</a>
-          <a className="text-slate-500 hover:text-[#57f1db] transition-colors" href="#">Dev</a>
-        </nav>
       </div>
 
       <div className="flex items-center gap-3">
@@ -58,32 +84,29 @@ export default function Topbar({ onRunOptimizer, onLoadAll, user, onLogout }: To
           </div>
         )}
 
-        <div className="flex items-center gap-1.5 px-3 py-1 glass-panel rounded-full text-primary text-[10px] font-bold uppercase">
-          <span className="relative flex h-1.5 w-1.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary"></span>
-          </span>
-          Live
-        </div>
-
         <button
           onClick={onLoadAll}
           className="px-3 py-1.5 rounded-full border border-[#3c4a46]/20 text-primary text-xs font-semibold hover:bg-primary/10 transition-all"
         >
-          History
+          Refresh
         </button>
 
         <button
           onClick={onRunOptimizer}
           className="px-3 py-1.5 rounded-full bg-primary text-on-primary text-xs font-bold hover:brightness-110 transition-all"
         >
-          Simulate
+          Apply
         </button>
 
         <div className="h-5 w-px bg-[#3c4a46]/20 mx-1"></div>
 
-        <span className="material-symbols-outlined text-slate-500 hover:text-primary cursor-pointer transition-colors text-xl">notifications</span>
-        <span className="material-symbols-outlined text-slate-500 hover:text-primary cursor-pointer transition-colors text-xl">settings</span>
+        <button
+          onClick={refreshAzureStatus}
+          className="material-symbols-outlined text-slate-500 hover:text-primary cursor-pointer transition-colors text-xl"
+          title="Refresh Azure service status"
+        >
+          sync
+        </button>
 
         <button
           onClick={onLogout}

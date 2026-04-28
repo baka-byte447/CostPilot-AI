@@ -6,17 +6,14 @@ interface SidebarProps {
 }
 
 const navItems = [
-  { id: "overview", icon: "dashboard", label: "Overview", group: "Platform" },
-  { id: "liveinfra", icon: "hub", label: "Live Infra", group: "Platform" },
-  { id: "intelligence", icon: "insights", label: "Intelligence", group: "Platform" },
+  { id: "overview", icon: "dashboard", label: "Overview", group: "Azure VMSS" },
+  { id: "resources", icon: "cloud", label: "Service", group: "Azure VMSS" },
+  { id: "cloud-setup", icon: "cloud_done", label: "Cloud Setup", group: "Azure VMSS" },
   { id: "aioptimizer", icon: "psychology", label: "AI Optimizer", group: "AI Engine" },
-  { id: "governance", icon: "gavel", label: "Governance", group: "AI Engine" },
-  { id: "explainability", icon: "visibility", label: "Explainability", group: "AI Engine" },
-  { id: "resources", icon: "cloud", label: "Resources", group: "Infrastructure" },
 ];
 
 export default function Sidebar({ setPage, currentPage, onRunOptimizer, onLogout }: SidebarProps) {
-  const groups = ["Platform", "AI Engine", "Infrastructure"];
+  const groups = ["Azure VMSS", "AI Engine"];
 
   return (
     <aside className="flex flex-col fixed left-0 top-0 h-full w-64 bg-[#191c22]/80 backdrop-blur-2xl border-r border-[#3cddc7]/10 shadow-[0_0_64px_rgba(60,221,199,0.04)] z-50 overflow-y-auto">

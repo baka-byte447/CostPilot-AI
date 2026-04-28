@@ -30,6 +30,10 @@ export const fetchAzureACI      = () => api.get("/azure/aci")
 export const fetchAzureCost     = () => api.get("/azure/cost/current-month")
 export const fetchAzureCostByService = () => api.get("/azure/cost/by-service")
 
+export const saveAzureCredentials = (body: any) => api.post("/credentials/azure", body)
+export const validateAzureVMSS    = () => api.post("/credentials/azure/validate")
+export const fetchAzureVMSSStatus = () => api.get("/credentials/azure/status")
+
 export const fetchAWSASGs       = () => api.get("/aws/ec2/asgs")
 export const fetchAWSClusters   = () => api.get("/aws/ecs/clusters")
 export const fetchAWSActions    = () => api.get("/aws/actions/log")

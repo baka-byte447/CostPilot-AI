@@ -41,3 +41,5 @@ dashboard/dist/
 # Misc
 *.log
 .env
+
+context.md

@@ -5,7 +5,7 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_MODEL = "llama3-8b-8192"
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 
@@ -47,7 +47,7 @@ def _groq_explain(decision: dict) -> str:
                 "Content-Type": "application/json"
             },
             json={
-                "model": "llama3-8b-8192",
+                "model": GROQ_MODEL,
                 "messages": [
                     {
                         "role": "system",
@@ -144,7 +144,7 @@ def explain_decision(decision: dict) -> dict:
     if GROQ_API_KEY:
         explanation = _groq_explain(decision)
         if explanation:
-            source = "groq_llama3"
+            source = f"groq:{GROQ_MODEL}"
 
     if not explanation:
         explanation = _rule_based_explain(decision)

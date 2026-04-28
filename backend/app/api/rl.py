@@ -25,26 +25,18 @@ from app.models.user_model import User
 @router.get("/decision/latest")
 def get_latest_decision(current_user: User = Depends(get_current_user)):
     try:
-        from app.services.metrics_service import fetch_prometheus_data
-        from app.services.metrics_service import CPU_QUERY, MEMORY_QUERY, REQUEST_QUERY
-        from app.rl.trainer import decide_scaling_with_rl
-        from app.optimizer.explainer import explain_decision
+        from app.workers.user_metrics_collector import get_last_decision, get_last_explanation
 
-        cpu    = fetch_prometheus_data(CPU_QUERY)
-        memory = fetch_prometheus_data(MEMORY_QUERY)
-        req    = fetch_prometheus_data(REQUEST_QUERY)
+        decision = get_last_decision(current_user.id)
+        explanation = get_last_explanation(current_user.id)
 
-        db = next(get_db())
-        from app.api.credentials import load_user_credentials
-        import os
-        AZURE_MODE = os.getenv("AZURE_MODE", "false").lower() == "true"
-        provider = "azure" if AZURE_MODE else "aws"
-        creds = load_user_credentials(current_user.id, provider, db)
+        if not decision:
+            return {"status": "no_decision_yet"}
 
-        decision = decide_scaling_with_rl(current_user.id, cpu, memory, req, forecast=None, creds=creds)
-        explanation = explain_decision(decision)
-
-        return {"status": "ok", "decision": decision, "explanation": explanation}
+        payload = {"status": "ok", "decision": decision}
+        if explanation:
+            payload["explanation"] = explanation
+        return payload
     except Exception as e:
         return {"status": "error", "detail": str(e)}
 
