@@ -18,6 +18,8 @@ _scheduler_state = {
     "successful_runs": 0,
 }
 
+_last_explanation = None
+
 
 def _utc_now_iso() -> str:
     return datetime.utcnow().isoformat() + "Z"
@@ -26,6 +28,17 @@ def _utc_now_iso() -> str:
 def get_scheduler_state():
     with _state_lock:
         return dict(_scheduler_state)
+
+
+def set_last_explanation(explanation):
+    global _last_explanation
+    with _state_lock:
+        _last_explanation = explanation
+
+
+def get_last_explanation():
+    with _state_lock:
+        return _last_explanation
 
 def job():
     run_time = _utc_now_iso()

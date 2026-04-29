@@ -1,6 +1,7 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-import random
 
 router = APIRouter(prefix="/azure", tags=["azure"])
 
@@ -29,7 +30,14 @@ def list_aci_groups():
         from app.azure import get_aci_ctrl
         return get_aci_ctrl().list_groups()
     except Exception as e:
-        return {"status": "ok", "mocked": True, "groups": [{"name": "mock-aci-group", "state": "Running", "cpu": 1.0, "memory": 2.0}]}
+        return [
+            {
+                "name": "mock-aci-group",
+                "state": "Running",
+                "location": "centralindia",
+                "ip": None,
+            }
+        ]
 
 
 @router.get("/aci/info")
@@ -47,7 +55,15 @@ def current_month_cost():
         from app.azure import get_azure_cost
         return get_azure_cost().get_current_month_cost()
     except Exception as e:
-        return {"amount": 543.21, "currency": "USD", "mocked": True}
+        now = datetime.now(timezone.utc)
+        start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        return {
+            "amount": 543.21,
+            "currency": "USD",
+            "period_start": start.strftime("%Y-%m-%d"),
+            "period_end": now.strftime("%Y-%m-%d"),
+            "mocked": True,
+        }
 
 
 @router.get("/cost/by-service")

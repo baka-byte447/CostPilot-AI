@@ -18,6 +18,14 @@ def decide_scaling(db):
     except (KeyError, TypeError, ValueError) as exc:
         raise ValueError("Forecast response missing required prediction values") from exc
 
-    replicas = decide_scaling_with_rl(cpu, memory, requests)
+    decision = decide_scaling_with_rl(cpu, memory, requests)
+
+    if isinstance(decision, dict):
+        replicas = decision.get("replicas")
+    else:
+        replicas = decision
+
+    if replicas is None:
+        raise ValueError("RL decision did not return a replica count")
 
     return replicas

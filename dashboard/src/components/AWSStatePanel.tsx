@@ -8,6 +8,11 @@ export default function AWSStatePanel() {
   const [actions, setActions]   = useState<any[]>([])
   const [loading, setLoading]   = useState(true)
 
+  const source = awsState?.source === "real" ? "real" : "mock"
+  const sourceLabel = source === "real" ? "REAL AWS" : "MOCK"
+  const sourceBadge = source === "real" ? "badge badge-green" : "badge badge-cyan"
+  const sourceSuffix = source === "real" ? "" : " (LocalStack)"
+
   const load = async () => {
     setLoading(true)
     try {
@@ -41,9 +46,9 @@ export default function AWSStatePanel() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-text">AWS Resources (LocalStack)</h2>
+        <h2 className="text-sm font-semibold text-text">AWS Resources{sourceSuffix}</h2>
         <div className="flex items-center gap-2">
-          <span className="badge badge-cyan">MOCK</span>
+          <span className={sourceBadge}>{sourceLabel}</span>
           <button onClick={load} className="text-textMuted hover:text-text transition-colors">
             <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
           </button>
@@ -146,7 +151,9 @@ export default function AWSStatePanel() {
       </div>
 
       <div className="card p-5">
-        <span className="card-title block mb-4">Action Log</span>
+        <span className="card-title block mb-4">
+          Action Log{source === "real" ? " (simulated)" : ""}
+        </span>
         <div className="space-y-2 max-h-64 overflow-y-auto">
           {actions.length === 0 ? (
             <p className="text-textMuted text-xs font-mono">No actions logged yet</p>

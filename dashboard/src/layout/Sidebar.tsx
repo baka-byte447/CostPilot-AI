@@ -22,21 +22,21 @@ export default function Sidebar({ setPage, currentPage, onRunOptimizer }: Sideba
   };
 
   return (
-    <aside className="flex flex-col fixed left-0 top-0 h-full w-64 bg-[#191c22]/80 backdrop-blur-2xl border-r border-[#3cddc7]/10 shadow-[0_0_64px_rgba(60,221,199,0.04)] z-50 overflow-y-auto">
-      <div className="p-7 flex items-center gap-3 border-b border-[#3cddc7]/10">
-        <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-[0_0_20px_rgba(87,241,219,0.3)]">
-          <span className="material-symbols-outlined text-on-primary text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>hub</span>
+    <aside className="flex flex-col fixed left-0 top-0 h-full w-64 sidebar-shell border-r border-[rgba(255,255,255,0.08)] z-50 overflow-y-auto">
+      <div className="p-7 flex items-center gap-3 border-b border-[rgba(255,255,255,0.08)]">
+        <div className="w-9 h-9 rounded-xl bg-primary/15 border border-primary/40 flex items-center justify-center shadow-[0_0_18px_rgba(233,79,55,0.35)]">
+          <span className="material-symbols-outlined text-primary text-xl" style={{ fontVariationSettings: "'FILL' 0" }}>hub</span>
         </div>
         <div>
-          <div className="text-[18px] font-bold text-[#57f1db] tracking-tighter font-headline">CostPilot</div>
-          <div className="text-[9px] uppercase tracking-[0.2em] text-slate-600 font-bold">Enterprise AI</div>
+          <div className="text-[18px] font-bold text-text tracking-tighter font-headline">CostPilot</div>
+          <div className="text-[9px] uppercase tracking-[0.2em] text-textDim font-bold">Enterprise AI</div>
         </div>
       </div>
 
       <nav className="flex-1 px-3 py-5 space-y-1">
         {groups.map((group) => (
           <div key={group}>
-            <p className="px-4 text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-2 mt-5 first:mt-0">{group}</p>
+            <p className="px-4 text-[9px] font-bold text-textDim uppercase tracking-widest mb-2 mt-5 first:mt-0">{group}</p>
             {navItems
               .filter((item) => item.group === group)
               .map((item) => (
@@ -55,11 +55,12 @@ export default function Sidebar({ setPage, currentPage, onRunOptimizer }: Sideba
         ))}
       </nav>
 
-      <div className="p-5 border-t border-[#3cddc7]/10">
+      <div className="p-5 border-t border-[rgba(255,255,255,0.08)]">
         <button
           onClick={handleRunOptimizer}
-          className="w-full py-3 rounded-full bg-gradient-to-r from-primary to-primary-container text-on-primary font-bold text-sm shadow-[0_0_20px_rgba(87,241,219,0.25)] hover:opacity-90 active:scale-95 transition-all"
+          className="w-full py-3 rounded-[10px] optimizer-gradient optimizer-glow text-sm font-medium flex items-center justify-center gap-2"
         >
+          <span className="text-base leading-none">+</span>
           Run Optimizer
         </button>
       </div>

@@ -24,10 +24,10 @@ export default function LiveInfra() {
       const metrics = res.data;
       if (!metrics?.length) return;
 
-      const last = metrics[metrics.length - 1];
-      const cpuVal = Math.max(0, last.cpu_usage);
-      const memVal = last.memory_usage;
-      const reqVal = last.request_load;
+      const latest = metrics[0];
+      const cpuVal = Math.max(0, latest.cpu_usage);
+      const memVal = latest.memory_usage;
+      const reqVal = latest.request_load;
 
       setCpu(cpuVal.toFixed(1) + "%");
       setMem(memVal.toFixed(1) + "%");
@@ -35,7 +35,7 @@ export default function LiveInfra() {
       setCpuPct(Math.min(100, cpuVal));
       setMemPct(Math.min(100, memVal));
 
-      const recent = metrics.slice(-30);
+      const recent = metrics.slice(0, 30).reverse();
       const labels = recent.map((m: any) =>
         new Date(m.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
       );

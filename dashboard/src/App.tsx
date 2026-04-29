@@ -1,6 +1,7 @@
 import { useState } from "react";
 import MainLayout from "./layout/MainLayout";
 import { runOptimizer } from "./services/api";
+import CustomCursor from "./components/CustomCursor";
 
 import Overview from "./pages/Overview";
 import LiveInfra from "./pages/LiveInfra";
@@ -41,6 +42,7 @@ function App() {
   return (
     <MainLayout setPage={setPage} currentPage={page} onRefresh={handleRefresh}>
       {renderPage()}
+      <CustomCursor />
     </MainLayout>
   );
 }

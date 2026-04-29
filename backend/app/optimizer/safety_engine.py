@@ -1,6 +1,8 @@
-import os
 import logging
+import os
+import time
 from dataclasses import dataclass
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +41,6 @@ def check_action(
     memory: float,
     request_load: float
 ) -> dict:
-    import time
     global _last_action_time, _last_replicas
 
     violations = []
@@ -131,6 +132,15 @@ def clamp_replicas(current: int, proposed: int) -> int:
     return proposed
 
 
+def record_replicas(replicas: int) -> None:
+    global _last_replicas
+    _last_replicas = replicas
+
+
+def get_last_replicas() -> int:
+    return _last_replicas
+
+
 def get_slo_config() -> dict:
     return {
         "max_cpu_pct": SLO.max_cpu_pct,
@@ -143,4 +153,20 @@ def get_slo_config() -> dict:
         "max_cpu_to_scale_down": SLO.max_cpu_to_scale_down,
         "max_memory_to_scale_down": SLO.max_memory_to_scale_down,
         "max_requests_to_scale_down": SLO.max_requests_to_scale_down,
+    }
+
+
+def get_safety_status() -> dict:
+    now = time.time()
+    seconds_since_last = now - _last_action_time
+    remaining = max(0, SLO.cooldown_seconds - int(seconds_since_last)) if _last_action_time else 0
+    last_action = None
+    if _last_action_time:
+        last_action = datetime.utcfromtimestamp(_last_action_time).isoformat() + "Z"
+
+    return {
+        "cooldown_active": remaining > 0,
+        "cooldown_remaining": remaining,
+        "last_action_time": last_action,
+        "circuit_breaker": "CLOSED",
     }

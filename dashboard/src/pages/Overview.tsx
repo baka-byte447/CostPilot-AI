@@ -75,10 +75,10 @@ export default function Overview({ onNavigate, onRunOptimizer }: OverviewProps) 
       }
 
       if (metrics?.length) {
-        const last = metrics[metrics.length - 1];
-        next.cpu = last.cpu_usage.toFixed(1) + "%";
-        next.cpuSub = `memory: ${last.memory_usage.toFixed(1)}%`;
-        next.mem = last.memory_usage.toFixed(1) + "%";
+        const latest = metrics[0];
+        next.cpu = latest.cpu_usage.toFixed(1) + "%";
+        next.cpuSub = `memory: ${latest.memory_usage.toFixed(1)}%`;
+        next.mem = latest.memory_usage.toFixed(1) + "%";
       }
 
       if (d?.decision) {
@@ -120,11 +120,12 @@ export default function Overview({ onNavigate, onRunOptimizer }: OverviewProps) 
 
     // Chart
     if (metrics?.length) {
-      const labels = metrics.slice(-20).map((m: any) =>
+      const recent = metrics.slice(0, 20).reverse();
+      const labels = recent.map((m: any) =>
         new Date(m.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
       );
-      const cpuData = metrics.slice(-20).map((m: any) => Math.max(0, m.cpu_usage));
-      const memData = metrics.slice(-20).map((m: any) => m.memory_usage);
+      const cpuData = recent.map((m: any) => Math.max(0, m.cpu_usage));
+      const memData = recent.map((m: any) => m.memory_usage);
 
       if (chartRef.current) {
         const ctx = chartRef.current.getContext("2d")!;
