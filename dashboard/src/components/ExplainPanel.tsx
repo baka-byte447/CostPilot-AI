@@ -10,7 +10,7 @@ export default function ExplainPanel() {
 
   const load = async () => {
     try {
-      const [e, d] = await Promise.allSettled([
+      const [e] = await Promise.allSettled([
         fetchRLExplanation(),
         fetchRLDecision(),
       ])

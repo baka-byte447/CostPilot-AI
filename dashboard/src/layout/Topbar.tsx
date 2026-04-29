@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { fetchSafetyStatus, runOptimizer } from "@/services/api";
+import { fetchSafetyStatus } from "@/services/api";
 
 interface TopbarProps {
   onRunOptimizer: () => void;
@@ -11,7 +11,6 @@ export default function Topbar({ onRunOptimizer, onLoadAll }: TopbarProps) {
     active: false,
     remaining: 0,
   });
-  const [activeEnv, setActiveEnv] = useState("Production");
 
   useEffect(() => {
     checkCooldown();
@@ -31,14 +30,12 @@ export default function Topbar({ onRunOptimizer, onLoadAll }: TopbarProps) {
     } catch {}
   }
 
-  const handleHistory = () => {
+  const handleRefresh = () => {
     onLoadAll();
-    alert("History reloaded from the backend!");
   };
 
-  const handleSimulate = () => {
+  const handleRunOptimizer = () => {
     onRunOptimizer();
-    alert("Simulation request sent!");
   };
 
   return (
@@ -52,18 +49,11 @@ export default function Topbar({ onRunOptimizer, onLoadAll }: TopbarProps) {
             type="text"
           />
         </div>
-        <nav className="flex items-center gap-5 text-sm font-medium cursor-pointer">
-          {["Production", "Staging", "Dev"].map((env) => (
-            <span
-              key={env}
-              onClick={() => setActiveEnv(env)}
-              className={`transition-colors ${
-                activeEnv === env ? "text-[#57f1db] border-b border-[#57f1db] pb-0.5" : "text-slate-500 hover:text-[#57f1db]"
-              }`}
-            >
-              {env}
-            </span>
-          ))}
+        <nav className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+          <span className="px-2.5 py-1 rounded-full border border-[#3c4a46]/20 bg-[#1d2026] text-[#57f1db]">
+            Live backend
+          </span>
+          <span>Production / Staging / Dev views are not separate targets yet.</span>
         </nav>
       </div>
 
@@ -84,17 +74,17 @@ export default function Topbar({ onRunOptimizer, onLoadAll }: TopbarProps) {
         </div>
 
         <button
-          onClick={handleHistory}
+          onClick={handleRefresh}
           className="px-3 py-1.5 rounded-full border border-[#3c4a46]/20 text-primary text-xs font-semibold hover:bg-primary/10 transition-all"
         >
-          History
+          Refresh
         </button>
 
         <button
-          onClick={handleSimulate}
+          onClick={handleRunOptimizer}
           className="px-3 py-1.5 rounded-full bg-primary text-on-primary text-xs font-bold hover:brightness-110 transition-all"
         >
-          Simulate
+          Run Optimizer
         </button>
 
         <div className="h-5 w-px bg-[#3c4a46]/20 mx-1"></div>

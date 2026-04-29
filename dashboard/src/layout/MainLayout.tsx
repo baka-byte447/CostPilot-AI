@@ -1,7 +1,6 @@
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 import { runOptimizer } from "@/services/api";
-import { useState } from "react";
 
 interface MainLayoutProps {
   children: React.ReactNode;

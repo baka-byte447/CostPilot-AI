@@ -17,6 +17,7 @@ export const fetchAWSState      = () => api.get("/api/rl/aws/state")
 
 export const fetchSLOConfig     = () => api.get("/api/optimize/slo")
 export const fetchSafetyStatus  = () => api.get("/api/optimize/safety/status")
+export const fetchOptimizerPreview = () => api.get("/api/optimize/preview")
 
 export const fetchAzureACI      = () => api.get("/api/azure/aci")
 export const fetchAzureCost     = () => api.get("/api/azure/cost/current-month")

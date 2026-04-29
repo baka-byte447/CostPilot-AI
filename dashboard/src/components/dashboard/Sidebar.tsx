@@ -1,4 +1,4 @@
-import { LayoutDashboard, Activity, Brain, ShieldCheck, MessageSquare, CloudCog, DollarSign, Settings, Zap } from "lucide-react"
+import { LayoutDashboard, Activity, Brain, ShieldCheck, MessageSquare, CloudCog, DollarSign, Zap } from "lucide-react"
 import type { FC } from "react"
 
 interface SidebarProps {

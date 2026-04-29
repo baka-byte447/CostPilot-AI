@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
-import { fetchAWSState, fetchAWSASGs, fetchAWSActions } from "../services/api"
+import { fetchAWSState, fetchAWSActions } from "../services/api"
 import { RefreshCw, Server, Layers, Box } from "lucide-react"
 
 export default function AWSStatePanel() {

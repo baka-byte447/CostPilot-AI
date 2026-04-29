@@ -17,9 +17,8 @@ const navItems = [
 export default function Sidebar({ setPage, currentPage, onRunOptimizer }: SidebarProps) {
   const groups = ["Platform", "AI Engine", "Infrastructure"];
 
-  const handleApplyChanges = () => {
+  const handleRunOptimizer = () => {
     onRunOptimizer();
-    alert("Global changes applied successfully!");
   };
 
   return (
@@ -58,10 +57,10 @@ export default function Sidebar({ setPage, currentPage, onRunOptimizer }: Sideba
 
       <div className="p-5 border-t border-[#3cddc7]/10">
         <button
-          onClick={handleApplyChanges}
+          onClick={handleRunOptimizer}
           className="w-full py-3 rounded-full bg-gradient-to-r from-primary to-primary-container text-on-primary font-bold text-sm shadow-[0_0_20px_rgba(87,241,219,0.25)] hover:opacity-90 active:scale-95 transition-all"
         >
-          Apply Changes
+          Run Optimizer
         </button>
       </div>
     </aside>

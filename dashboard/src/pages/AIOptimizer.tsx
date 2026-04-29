@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchRLDecision, fetchRLStats, fetchAWSActions } from "@/services/api";
+import { fetchRLDecision, fetchRLStats, fetchAWSActions, fetchOptimizerPreview } from "@/services/api";
 
 const ACTION_ICONS: Record<string, string> = {
   scale_up: "trending_up",
@@ -15,6 +15,7 @@ export default function AIOptimizer({ onRunOptimizer }: AIOptimizerProps) {
   const [decision, setDecision] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
   const [actions, setActions] = useState<any[]>([]);
+  const [preview, setPreview] = useState<any>(null);
   const [mode, setMode] = useState<"Auto" | "Manual">("Auto");
 
   useEffect(() => {
@@ -23,24 +24,28 @@ export default function AIOptimizer({ onRunOptimizer }: AIOptimizerProps) {
 
   async function load() {
     try {
-      const [d, s, a] = await Promise.all([
+      const [d, s, a, p] = await Promise.all([
         fetchRLDecision(),
         fetchRLStats(),
         fetchAWSActions(),
+        fetchOptimizerPreview(),
       ]);
       setDecision(d.data);
       setStats(s.data);
       setActions(a.data || []);
+      setPreview(p.data);
     } catch {}
   }
 
   const handleApply = () => {
     onRunOptimizer();
-    alert("Recommendation applied!");
   };
 
-  const handleSimulate = () => {
-    alert("Simulation started. Check backend logs.");
+  const handlePreview = async () => {
+    try {
+      const res = await fetchOptimizerPreview();
+      setPreview(res.data);
+    } catch {}
   };
 
   const d = decision?.decision;
@@ -69,7 +74,6 @@ export default function AIOptimizer({ onRunOptimizer }: AIOptimizerProps) {
       </header>
 
       <div className="grid grid-cols-12 gap-6">
-        {/* Current Decision */}
         <section className="col-span-5 bg-[#191c22] rounded-xl p-8 border border-[#3c4a46]/10 relative overflow-hidden">
           <div className="absolute -right-16 -top-16 w-64 h-64 bg-primary/5 blur-[100px] rounded-full pointer-events-none"></div>
           <div className="relative z-10">
@@ -121,7 +125,6 @@ export default function AIOptimizer({ onRunOptimizer }: AIOptimizerProps) {
           </div>
         </section>
 
-        {/* Q-Values */}
         <section className="col-span-7 bg-[#191c22] rounded-xl p-8 border border-[#3c4a46]/10 flex flex-col">
           <div className="flex items-center justify-between mb-8">
             <h3 className="text-lg font-bold headline text-white">Q-Values Projection</h3>
@@ -181,7 +184,6 @@ export default function AIOptimizer({ onRunOptimizer }: AIOptimizerProps) {
           </div>
         </section>
 
-        {/* Controls */}
         <section className="col-span-4 bg-[#191c22] rounded-xl p-8 border border-[#3c4a46]/10 space-y-5">
           <h3 className="text-base font-bold headline text-white">System Mode</h3>
           <div className="bg-[#10131a] p-1 rounded-full flex w-fit">
@@ -202,18 +204,33 @@ export default function AIOptimizer({ onRunOptimizer }: AIOptimizerProps) {
               Manual
             </button>
           </div>
+
           <button
             onClick={handleApply}
             className="w-full py-4 rounded-xl bg-gradient-to-r from-primary to-primary-container text-on-primary font-bold shadow-[0_8px_32px_rgba(87,241,219,0.2)] hover:opacity-90 transition-all"
           >
             Apply Recommendation
           </button>
-          <button onClick={handleSimulate} className="w-full py-4 rounded-xl border border-[#3c4a46] text-slate-300 font-bold hover:bg-white/5 transition-all">
-            Simulate Impact
+
+          <button
+            onClick={handlePreview}
+            className="w-full py-4 rounded-xl border border-[#3c4a46] text-slate-300 font-bold hover:bg-white/5 transition-all"
+          >
+            Preview Impact
           </button>
+
+          {preview && (
+            <div className="rounded-xl border border-[#3c4a46]/10 bg-[#10131a]/60 p-4 text-sm text-slate-400">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Latest Preview</div>
+              <div className="text-white font-semibold">{preview.deployment ?? "load-test-app"}</div>
+              <div className="mt-1">
+                Recommended replicas: <span className="text-primary font-bold">{preview.recommended_replicas ?? preview.replicas ?? "—"}</span>
+              </div>
+              <div className="text-[11px] text-slate-500 mt-1">Mode: {preview.mode ?? "preview"}</div>
+            </div>
+          )}
         </section>
 
-        {/* Scaling History */}
         <section className="col-span-8 bg-[#191c22] rounded-xl p-8 border border-[#3c4a46]/10">
           <div className="flex items-center justify-between mb-7">
             <h3 className="text-lg font-bold headline text-white">Scaling History</h3>
@@ -237,11 +254,15 @@ export default function AIOptimizer({ onRunOptimizer }: AIOptimizerProps) {
                         {a.previous !== undefined ? `${a.previous} → ${a.new}` : ""}
                       </div>
                     </div>
-                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
-                      a.action === "scale_up" ? "bg-primary/20 text-primary" :
-                      a.action === "scale_down" ? "bg-amber-400/20 text-amber-400" :
-                      "bg-slate-700 text-slate-400"
-                    }`}>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                        a.action === "scale_up"
+                          ? "bg-primary/20 text-primary"
+                          : a.action === "scale_down"
+                          ? "bg-amber-400/20 text-amber-400"
+                          : "bg-slate-700 text-slate-400"
+                      }`}
+                    >
                       {a.resource_type}
                     </span>
                   </div>
