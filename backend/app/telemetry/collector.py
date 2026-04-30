@@ -6,7 +6,7 @@ Exposes metrics in Prometheus format.
 
 import psutil
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Any
 from prometheus_client import Counter, Gauge, Histogram, start_http_server
 import logging
@@ -63,13 +63,13 @@ class MetricsCollector:
             ['host', 'device']
         )
         
-        self.network_bytes_sent = Counter(
+        self.network_bytes_sent = Gauge(
             'system_network_bytes_sent_total',
             'Total bytes sent over network',
             ['host', 'interface']
         )
         
-        self.network_bytes_recv = Counter(
+        self.network_bytes_recv = Gauge(
             'system_network_bytes_received_total',
             'Total bytes received over network',
             ['host', 'interface']
@@ -122,7 +122,7 @@ class MetricsCollector:
             Dict containing collected metrics
         """
         metrics = {
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'hostname': hostname,
             'cpu': self._collect_cpu_metrics(hostname),
             'memory': self._collect_memory_metrics(hostname),
@@ -204,8 +204,8 @@ class MetricsCollector:
         network_metrics = {}
         
         for interface, stats in net_io.items():
-            self.network_bytes_sent.labels(host=hostname, interface=interface).inc(stats.bytes_sent)
-            self.network_bytes_recv.labels(host=hostname, interface=interface).inc(stats.bytes_recv)
+            self.network_bytes_sent.labels(host=hostname, interface=interface).set(stats.bytes_sent)
+            self.network_bytes_recv.labels(host=hostname, interface=interface).set(stats.bytes_recv)
             
             network_metrics[interface] = {
                 'bytes_sent': stats.bytes_sent,
@@ -289,7 +289,7 @@ class MetricsCollector:
         return {
             'app_name': self.app_name,
             'uptime_seconds': time.time() - self.start_time,
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         }
 
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { awsSetup, awsSaveConnection, awsGetConnection, awsDeleteConnection, awsVerifyConnection } from "@/services/api";
 
 const AWS_REGIONS = [
@@ -31,6 +31,28 @@ interface Connection {
   external_id_set: boolean;
 }
 
+const STORAGE_KEY = "costpilot_aws_connection";
+
+function saveConnectionToStorage(conn: Connection) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(conn));
+  } catch {}
+}
+
+function loadConnectionFromStorage(): Connection | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as Connection;
+  } catch {
+    return null;
+  }
+}
+
+function clearConnectionFromStorage() {
+  localStorage.removeItem(STORAGE_KEY);
+}
+
 export default function ConnectAWS() {
   const [step, setStep] = useState<Step>("idle");
   const [setupData, setSetupData] = useState<SetupData | null>(null);
@@ -50,12 +72,37 @@ export default function ConnectAWS() {
   const [label, setLabel] = useState("");
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
 
+  // Edit form fields (separate from new-connection fields)
+  const [editAccountId, setEditAccountId] = useState("");
+  const [editRoleArn, setEditRoleArn] = useState("");
+  const [editExternalId, setEditExternalId] = useState("");
+  const [editRegions, setEditRegions] = useState<string[]>(["us-east-1"]);
+  const [editLabel, setEditLabel] = useState("");
+
+  // Restore cached connection instantly, then verify with backend
   const loadExistingConnection = useCallback(async () => {
+    const cached = loadConnectionFromStorage();
+    if (cached) {
+      setConnection(cached);
+      setStep("done");
+      setLoading(false);
+      // Background refresh from backend
+      try {
+        const res = await awsGetConnection();
+        setConnection(res.data);
+        saveConnectionToStorage(res.data);
+      } catch {
+        // Keep using cached data — it's still valid
+      }
+      return;
+    }
     setLoading(true);
     try {
       const res = await awsGetConnection();
       setConnection(res.data);
+      saveConnectionToStorage(res.data);
       setStep("done");
     } catch {
       setConnection(null);
@@ -100,6 +147,7 @@ export default function ConnectAWS() {
         label: label.trim() || undefined,
       });
       setConnection(res.data);
+      saveConnectionToStorage(res.data);
       setStep("done");
     } catch (e: any) {
       setError(e?.response?.data?.detail || "Failed to save connection");
@@ -121,6 +169,7 @@ export default function ConnectAWS() {
   async function handleDisconnect() {
     try {
       await awsDeleteConnection();
+      clearConnectionFromStorage();
       setConnection(null);
       setSetupData(null);
       setVerifyResult(null);
@@ -129,10 +178,53 @@ export default function ConnectAWS() {
       setExternalId("");
       setLabel("");
       setControlAccountId("");
+      setEditing(false);
       setStep("idle");
     } catch (e: any) {
       setError(e?.response?.data?.detail || "Failed to disconnect");
     }
+  }
+
+  function handleStartEdit() {
+    if (!connection) return;
+    setEditAccountId(connection.account_id);
+    setEditRoleArn(connection.role_arn);
+    setEditExternalId("");
+    setEditRegions(connection.regions);
+    setEditLabel(connection.label || "");
+    setEditing(true);
+    setError("");
+  }
+
+  async function handleSaveEdit() {
+    setError("");
+    if (!editAccountId.trim() || !editRoleArn.trim() || !editExternalId.trim()) {
+      setError("Account ID, Role ARN, and External ID are required");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await awsSaveConnection({
+        account_id: editAccountId.trim(),
+        role_arn: editRoleArn.trim(),
+        external_id: editExternalId.trim(),
+        regions: editRegions,
+        label: editLabel.trim() || undefined,
+      });
+      setConnection(res.data);
+      saveConnectionToStorage(res.data);
+      setEditing(false);
+    } catch (e: any) {
+      setError(e?.response?.data?.detail || "Failed to update connection");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function toggleEditRegion(r: string) {
+    setEditRegions((prev) =>
+      prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]
+    );
   }
 
   function toggleRegion(r: string) {
@@ -197,21 +289,114 @@ export default function ConnectAWS() {
                   <span className="material-symbols-outlined text-sm">verified</span>
                   Verify
                 </button>
+                <button onClick={handleStartEdit} className="px-3 py-1.5 rounded-lg ghost-button text-xs font-semibold text-blue-400 flex items-center gap-1.5 hover:bg-blue-400/10 border border-blue-400/20">
+                  <span className="material-symbols-outlined text-sm">edit</span>
+                  Edit Details
+                </button>
                 <button onClick={handleDisconnect} className="px-3 py-1.5 rounded-lg ghost-button text-xs font-semibold text-red-500 flex items-center gap-1.5 hover:bg-red-500/10 border border-red-500/20">
                   <span className="material-symbols-outlined text-sm">delete</span>
-                  Delete Details
+                  Delete
                 </button>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <InfoField label="Account ID" value={connection.account_id} />
-              <InfoField label="Default Region" value={connection.default_region} />
-              <InfoField label="Role ARN" value={connection.role_arn} full />
-              <InfoField label="Regions" value={connection.regions.join(", ")} full />
-              {connection.label && <InfoField label="Label" value={connection.label} />}
-              <InfoField label="Connected" value={new Date(connection.created_at).toLocaleDateString()} />
-            </div>
+            {/* ── View Mode ── */}
+            {!editing && (
+              <div className="grid grid-cols-2 gap-4">
+                <InfoField label="Account ID" value={connection.account_id} />
+                <InfoField label="Default Region" value={connection.default_region} />
+                <InfoField label="Role ARN" value={connection.role_arn} full />
+                <InfoField label="Regions" value={connection.regions.join(", ")} full />
+                {connection.label && <InfoField label="Label" value={connection.label} />}
+                <InfoField label="Connected" value={new Date(connection.created_at).toLocaleDateString()} />
+                <div className="col-span-2 mt-2 flex items-center gap-2 text-[10px] text-emerald-400">
+                  <span className="material-symbols-outlined text-xs">save</span>
+                  Saved permanently — will persist until you manually delete it
+                </div>
+              </div>
+            )}
+
+            {/* ── Edit Mode ── */}
+            {editing && (
+              <div className="space-y-4 mt-2">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-textDim mb-1.5 uppercase tracking-wider">AWS Account ID *</label>
+                    <input
+                      value={editAccountId}
+                      onChange={(e) => setEditAccountId(e.target.value)}
+                      className="w-full glass-input rounded-lg py-2.5 px-4 text-sm text-text focus:outline-none focus:ring-1 ring-primary/40"
+                      placeholder="123456789012"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-textDim mb-1.5 uppercase tracking-wider">Label (optional)</label>
+                    <input
+                      value={editLabel}
+                      onChange={(e) => setEditLabel(e.target.value)}
+                      className="w-full glass-input rounded-lg py-2.5 px-4 text-sm text-text focus:outline-none focus:ring-1 ring-primary/40"
+                      placeholder="Production Account"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-textDim mb-1.5 uppercase tracking-wider">Role ARN *</label>
+                  <input
+                    value={editRoleArn}
+                    onChange={(e) => setEditRoleArn(e.target.value)}
+                    className="w-full glass-input rounded-lg py-2.5 px-4 text-sm text-text focus:outline-none focus:ring-1 ring-primary/40 font-mono text-xs"
+                    placeholder="arn:aws:iam::123456789012:role/CostPilotAccessRole"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-textDim mb-1.5 uppercase tracking-wider">External ID *</label>
+                  <input
+                    value={editExternalId}
+                    onChange={(e) => setEditExternalId(e.target.value)}
+                    className="w-full glass-input rounded-lg py-2.5 px-4 text-sm text-text focus:outline-none focus:ring-1 ring-primary/40 font-mono text-xs"
+                    placeholder="Enter the External ID from your CloudFormation stack"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-textDim mb-2 uppercase tracking-wider">Regions to Scan *</label>
+                  <div className="flex flex-wrap gap-2">
+                    {AWS_REGIONS.map((r) => (
+                      <button
+                        key={r}
+                        onClick={() => toggleEditRegion(r)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                          editRegions.includes(r)
+                            ? "bg-primary/15 border border-primary/50 text-primary"
+                            : "glass-panel text-textDim hover:text-textMuted"
+                        }`}
+                      >
+                        {r}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 pt-2">
+                  <button
+                    onClick={handleSaveEdit}
+                    disabled={saving || !editAccountId.trim() || !editRoleArn.trim() || !editExternalId.trim()}
+                    className="px-5 py-2.5 rounded-xl optimizer-gradient optimizer-glow text-sm font-semibold flex items-center gap-2 disabled:opacity-50 transition-all"
+                  >
+                    <span className="material-symbols-outlined text-base">{saving ? "progress_activity" : "save"}</span>
+                    {saving ? "Saving..." : "Save Changes"}
+                  </button>
+                  <button
+                    onClick={() => setEditing(false)}
+                    className="px-4 py-2.5 rounded-xl ghost-button text-sm font-semibold"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {verifyResult && (

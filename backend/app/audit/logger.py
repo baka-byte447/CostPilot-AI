@@ -1,6 +1,6 @@
 """Lightweight audit trail for scaling decisions."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Optional
 
 
@@ -12,7 +12,7 @@ class AuditLogger:
 
     def log_decision(self, state: Dict[str, Any], action: Dict[str, Any], forecast: Dict[str, Any], reward: Optional[float]) -> Dict[str, Any]:
         entry = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "type": "decision",
             "state": state,
             "action": action,
@@ -24,7 +24,7 @@ class AuditLogger:
 
     def log_action_execution(self, action: Dict[str, Any], status: str, error: Optional[str] = None) -> Dict[str, Any]:
         entry = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "type": "execution",
             "action": action,
             "status": status,

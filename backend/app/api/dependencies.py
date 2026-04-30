@@ -1,7 +1,9 @@
 from typing import Generator, Optional
 
 from fastapi import Depends, Header, HTTPException
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
+from jose import jwt, JWTError
 
 from app.aws.aws_client import AWSClientManager, get_default_aws_manager
 from app.config.database import SessionLocal
@@ -17,12 +19,26 @@ def get_db() -> Generator[Session, None, None]:
         db.close()
 
 
-def get_user_id(x_user_id: Optional[str] = Header(default=None, alias="X-User-Id")) -> str:
-    if x_user_id:
-        return x_user_id
-    if settings.aws_require_connection:
-        raise HTTPException(status_code=401, detail="Missing X-User-Id header")
-    return "default"
+security = HTTPBearer(auto_error=False)
+
+def decode_access_token(token: str) -> str:
+    try:
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+        user_id = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+        return user_id
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Could not validate credentials")
+
+def get_user_id(creds: Optional[HTTPAuthorizationCredentials] = Depends(security)) -> str:
+    if creds:
+        return decode_access_token(creds.credentials)
+    
+    if not settings.auth_required:
+        return "default"
+        
+    raise HTTPException(status_code=401, detail="Not authenticated")
 
 
 def get_aws_manager(

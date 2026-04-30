@@ -11,9 +11,10 @@ class CloudEnvironment:
         possible = [1, 2, 4]
         replicas = possible[action] if 0 <= action < len(possible) else possible[0]
 
-        cpu = self.state[0]
+        cpu_utilization = self.state[0]
         cost = replicas * 0.0416
-        penalty = 5 if cpu > 80 else 0
+        penalty = 5 if cpu_utilization > 80 else 0
+        slo_bonus = 2.0 if cpu_utilization <= 80 else 0.0
 
-        reward = -cost - penalty
+        reward = slo_bonus - cost - penalty
         return tuple(self.state), reward, replicas

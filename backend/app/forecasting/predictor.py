@@ -2,7 +2,12 @@
 
 Uses a simple moving-average baseline so the system has a predictable,
 human-auditable forecast when richer models are not available.
+
+DEPRECATED: This module is deprecated. Use backend/app/ml/forecasting_model.py instead.
 """
+
+import warnings
+warnings.warn("DemandPredictor is deprecated and no longer used. See ml/forecasting_model.py.", DeprecationWarning, stacklevel=2)
 
 from statistics import mean
 from typing import Iterable, List, Optional, Sequence

@@ -18,7 +18,7 @@ class Settings(BaseSettings):
 	app_name: str = Field("costpilot-backend", description="Display name for the backend service")
 	database_url: str = Field("sqlite:///../database/metrics.db", description="SQLAlchemy database URL")
 	prometheus_url: str = Field("http://prometheus:9090", description="Base URL for Prometheus queries")
-	cors_origins: str = Field("*", description="Comma-separated list of allowed CORS origins")
+	cors_origins: str = Field("http://localhost:5173", description="Comma-separated list of allowed CORS origins")
 	prometheus_export_port: int = Field(8001, description="Port for the internal Prometheus exporter")
 	kube_config_path: Optional[str] = Field(None, description="Optional path to a kubeconfig file")
 	aws_control_account_id: Optional[str] = Field(
@@ -39,7 +39,7 @@ class Settings(BaseSettings):
 		description="Require JWT authentication for protected endpoints",
 	)
 	jwt_secret: str = Field(
-		"change-me",
+		...,
 		description="Secret key for signing JWTs",
 	)
 	jwt_algorithm: str = Field(
@@ -49,6 +49,10 @@ class Settings(BaseSettings):
 	jwt_access_token_minutes: int = Field(
 		720,
 		description="JWT access token lifetime in minutes",
+	)
+	simulate_metrics: bool = Field(
+		True,
+		description="Generate simulated CPU/memory/request metrics when Prometheus is unavailable",
 	)
 
 	if USING_PYDANTIC_V2:
@@ -72,7 +76,18 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-	return Settings()
+	import sys
+	import logging
+	try:
+		s = Settings()
+	except Exception as e:
+		logging.error(f"Configuration error: {e}")
+		sys.exit(1)
+		
+	if not s.jwt_secret or s.jwt_secret == "change-me":
+		logging.error("CRITICAL: JWT_SECRET is missing or set to default 'change-me'. Application will exit.")
+		sys.exit(1)
+	return s
 
 
 settings = get_settings()

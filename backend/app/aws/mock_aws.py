@@ -1,6 +1,6 @@
 
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 _state = {
     "asgs": {
@@ -184,12 +184,12 @@ class MockCostExplorer:
             "amount": round(total * 24 * 28, 2),
             "currency": "USD",
             "period_start": "2026-03-01",
-            "period_end": datetime.utcnow().strftime("%Y-%m-%d")
+            "period_end": datetime.now(timezone.utc).strftime("%Y-%m-%d")
         }
 
     def get_daily_cost(self, days: int = 7) -> list:
         from datetime import timedelta
-        today = datetime.utcnow().date()
+        today = datetime.now(timezone.utc).date()
         return [
             {
                 "date": str(today - timedelta(days=i)),
@@ -212,7 +212,7 @@ class MockCostExplorer:
 
 def _log_action(resource_type, action, target, previous, new):
     _state["actions_log"].append({
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "resource_type": resource_type,
         "action": action,
         "target": target,

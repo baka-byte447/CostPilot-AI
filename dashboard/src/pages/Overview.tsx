@@ -22,7 +22,7 @@ export default function Overview({ onNavigate, onRunOptimizer }: OverviewProps) 
 
   const [kpis, setKpis] = useState({
     awsCost: "—",
-    awsCredits: "loading...",
+    awsCredits: "awaiting data",
     creditsPositive: true,
     cpu: "—",
     cpuSub: "from Prometheus",
@@ -32,12 +32,13 @@ export default function Overview({ onNavigate, onRunOptimizer }: OverviewProps) 
     reward: "—",
     epsilon: "—",
     aiExplanation: "Fetching latest RL agent decision...",
-    aiActionTitle: "Loading...",
+    aiActionTitle: "Awaiting...",
     coverage: 0,
     forecast: "—",
     forecastSub: "Prophet model",
     decisionTime: "—",
   });
+  const [loadAttempted, setLoadAttempted] = useState(false);
 
   const [awsRows, setAwsRows] = useState<any[]>([]);
 
@@ -57,6 +58,8 @@ export default function Overview({ onNavigate, onRunOptimizer }: OverviewProps) 
       fetchRLStats().catch(() => ({ data: null })),
     ]);
 
+    setLoadAttempted(true);
+
     const metrics = m.data;
     const d = decision.data;
     const awsAmount = awsCostMetric.data;
@@ -67,41 +70,65 @@ export default function Overview({ onNavigate, onRunOptimizer }: OverviewProps) 
     setKpis((prev) => {
       const next = { ...prev };
 
-      if (awsAmount) {
-        next.awsCost = "$" + awsAmount.amount?.toFixed(2);
+      // AWS Cost
+      if (awsAmount && awsAmount.amount != null) {
+        next.awsCost = "$" + awsAmount.amount.toFixed(2);
         const rem = (100 - awsAmount.amount).toFixed(2);
         next.creditsPositive = parseFloat(rem) > 0;
         next.awsCredits = parseFloat(rem) > 0 ? `$${rem} credits left` : `Over budget by $${Math.abs(parseFloat(rem))}`;
+      } else if (!awsAmount) {
+        next.awsCost = "$0.00";
+        next.awsCredits = "No AWS cost data yet";
+        next.creditsPositive = true;
       }
 
-      if (metrics?.length) {
+      // Metrics (CPU / Memory)
+      if (metrics && Array.isArray(metrics) && metrics.length > 0) {
         const latest = metrics[0];
-        next.cpu = latest.cpu_usage.toFixed(1) + "%";
-        next.cpuSub = `memory: ${latest.memory_usage.toFixed(1)}%`;
-        next.mem = latest.memory_usage.toFixed(1) + "%";
+        const cpuVal = typeof latest.cpu_usage === 'number' ? latest.cpu_usage : 0;
+        const memVal = typeof latest.memory_usage === 'number' ? latest.memory_usage : 0;
+        next.cpu = Math.max(0, cpuVal).toFixed(1) + "%";
+        next.cpuSub = `memory: ${memVal.toFixed(1)}%`;
+        next.mem = memVal.toFixed(1) + "%";
+      } else {
+        next.cpu = "0.0%";
+        next.cpuSub = "awaiting metrics";
+        next.mem = "0.0%";
       }
 
+      // RL Decision
       if (d?.decision) {
         const dec = d.decision;
-        const action = dec.action?.replace("_", " ").toUpperCase() ?? "—";
+        const action = dec.action?.replace("_", " ").toUpperCase() ?? "MAINTAIN";
         next.action = action;
         next.aiActionTitle = action;
-        next.replicas = dec.replicas ?? "—";
-        next.reward = dec.reward ?? "—";
-        next.epsilon = dec.epsilon ?? "—";
-        next.decisionTime = new Date().toLocaleTimeString();
+        next.replicas = dec.replicas ?? 3;
+        next.reward = typeof dec.reward === 'number' ? dec.reward.toFixed(4) : (dec.reward ?? "0.0000");
+        next.epsilon = typeof dec.epsilon === 'number' ? dec.epsilon.toFixed(4) : (dec.epsilon ?? "1.0000");
+        next.decisionTime = dec.timestamp ? new Date(dec.timestamp + (dec.timestamp.endsWith("Z") ? "" : "Z")).toLocaleTimeString() : new Date().toLocaleTimeString();
+      } else if (d?.status === "error") {
+        next.action = "MAINTAIN";
+        next.aiActionTitle = "MAINTAIN";
+        next.replicas = 3;
+        next.aiExplanation = "RL agent initializing — using safe default action.";
+        next.decisionTime = d?.timestamp ? new Date(d.timestamp + (d.timestamp.endsWith("Z") ? "" : "Z")).toLocaleTimeString() : new Date().toLocaleTimeString();
       }
 
       if (d?.explanation?.explanation) {
         next.aiExplanation = d.explanation.explanation;
       }
 
-      if (fc) {
+      // Forecast
+      if (fc && !fc.error) {
         next.forecast = "$" + (fc.predicted_hourly_cost ?? 0).toFixed(4);
         next.forecastSub = `CPU forecast: ${(fc.predicted_cpu ?? 0).toFixed(1)}%`;
+      } else {
+        next.forecast = "$0.0000";
+        next.forecastSub = "warming up model";
       }
 
-      if (stats) {
+      // RL Stats
+      if (stats && !stats.error) {
         next.coverage = stats.coverage_pct ?? 0;
       }
 
@@ -122,7 +149,7 @@ export default function Overview({ onNavigate, onRunOptimizer }: OverviewProps) 
     if (metrics?.length) {
       const recent = metrics.slice(0, 20).reverse();
       const labels = recent.map((m: any) =>
-        new Date(m.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        new Date(m.timestamp + (m.timestamp.endsWith("Z") ? "" : "Z")).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
       );
       const cpuData = recent.map((m: any) => Math.max(0, m.cpu_usage));
       const memData = recent.map((m: any) => m.memory_usage);
@@ -307,7 +334,7 @@ export default function Overview({ onNavigate, onRunOptimizer }: OverviewProps) 
             </thead>
             <tbody className="text-on-surface">
               {awsRows.length === 0 ? (
-                <tr><td colSpan={5} className="py-6 text-center text-slate-600 text-xs">Loading resources...</td></tr>
+                <tr><td colSpan={5} className="py-6 text-center text-slate-600 text-xs">{loadAttempted ? "No AWS resources found — connect your AWS account or wait for mock data" : "Loading resources..."}</td></tr>
               ) : (
                 awsRows.map((row, i) => (
                   <tr key={i} className="group hover:bg-[#272a31]/30 transition-all border-b border-[#3c4a46]/5">

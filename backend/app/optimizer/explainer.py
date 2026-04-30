@@ -1,6 +1,6 @@
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +152,7 @@ def explain_decision(decision: dict) -> dict:
     return {
         "explanation": explanation,
         "source": source,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "action": decision.get("action"),
         "cpu": decision.get("cpu"),
         "memory": decision.get("memory"),

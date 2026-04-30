@@ -20,12 +20,7 @@ def decide_scaling(db):
 
     decision = decide_scaling_with_rl(cpu, memory, requests)
 
-    if isinstance(decision, dict):
-        replicas = decision.get("replicas")
-    else:
-        replicas = decision
+    if decision is None:
+        raise ValueError("RL decision did not return a value")
 
-    if replicas is None:
-        raise ValueError("RL decision did not return a replica count")
-
-    return replicas
+    return decision

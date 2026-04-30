@@ -12,22 +12,12 @@ logger = logging.getLogger(__name__)
 
 
 def _build_default_session(region: str, endpoint_url: Optional[str]) -> boto3.Session:
-    access_key = os.getenv("AWS_ACCESS_KEY_ID")
-    secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
-    session_token = os.getenv("AWS_SESSION_TOKEN")
-
-    if endpoint_url and not (access_key and secret_key):
-        access_key = "test"
-        secret_key = "test"
-
-    if access_key and secret_key:
+    if endpoint_url:
         return boto3.Session(
-            aws_access_key_id=access_key,
-            aws_secret_access_key=secret_key,
-            aws_session_token=session_token,
+            aws_access_key_id="test",
+            aws_secret_access_key="test",
             region_name=region,
         )
-
     return boto3.Session(region_name=region)
 
 

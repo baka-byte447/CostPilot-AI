@@ -1,6 +1,6 @@
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from .aws_client import get_default_aws_manager
 
@@ -11,7 +11,7 @@ class CostExplorer:
         self.aws = aws_manager or get_default_aws_manager()
 
     def get_daily_cost(self, days: int = 7) -> list:
-        end = datetime.utcnow().date()
+        end = datetime.now(timezone.utc).date()
         start = end - timedelta(days=days)
 
         resp = self.aws.cost_explorer().get_cost_and_usage(
@@ -42,7 +42,7 @@ class CostExplorer:
 
     def get_current_month_cost(self) -> dict:
 
-        now = datetime.utcnow().date()
+        now = datetime.now(timezone.utc).date()
         start = now.replace(day=1)
 
         resp = self.aws.cost_explorer().get_cost_and_usage(
@@ -67,7 +67,7 @@ class CostExplorer:
         }
 
     def get_cost_forecast(self, days_ahead: int = 30) -> dict:
-        now = datetime.utcnow().date()
+        now = datetime.now(timezone.utc).date()
         end = now + timedelta(days=days_ahead)
 
         resp = self.aws.cost_explorer().get_cost_forecast(

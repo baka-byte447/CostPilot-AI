@@ -76,8 +76,8 @@ class EC2Controller:
                 MetricName="CPUUtilization",
                 Dimensions=[{"Name": "InstanceId", "Value": instance_id}],
                 Period=600,
-                StartTime=__import__("datetime").datetime.utcnow() - __import__("datetime").timedelta(minutes=10),
-                EndTime=__import__("datetime").datetime.utcnow(),
+                StartTime=__import__("datetime").datetime.now(timezone.utc) - __import__("datetime").timedelta(minutes=10),
+                EndTime=__import__("datetime").datetime.now(timezone.utc),
                 Statistics=["Average"]
             )
             datapoints = metrics.get("Datapoints", [])

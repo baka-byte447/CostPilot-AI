@@ -1,8 +1,11 @@
 import logging
 import os
 from app.aws import get_ec2_ctrl, get_ecs_ctrl, get_eks_ctrl
+from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
+
+MAX_SCALE_STEP = getattr(settings, "max_scale_step", 4)
 
 
 class AWSScalingExecutor:
@@ -32,7 +35,8 @@ class AWSScalingExecutor:
         ec2 = get_ec2_ctrl(aws_manager)
         asg_name = target.get("asg_name")
         if action == "scale_up":
-            result = ec2.scale_up(asg_name, params.get("increment", 1))
+            increment = min(params.get("increment", 1), MAX_SCALE_STEP)
+            result = ec2.scale_up(asg_name, increment)
         elif action == "scale_down":
             result = ec2.scale_down(asg_name, params.get("decrement", 1))
         elif action == "terminate_idle":
@@ -50,7 +54,8 @@ class AWSScalingExecutor:
         cluster = target["cluster"]
         service = target["service"]
         if action == "scale_up":
-            result = ecs.scale_up(cluster, service, params.get("increment", 1))
+            increment = min(params.get("increment", 1), MAX_SCALE_STEP)
+            result = ecs.scale_up(cluster, service, increment)
         elif action == "scale_down":
             result = ecs.scale_down(cluster, service, params.get("decrement", 1))
         elif action == "maintain":
@@ -64,7 +69,8 @@ class AWSScalingExecutor:
         cluster   = target["cluster"]
         nodegroup = target["nodegroup"]
         if action == "scale_up":
-            result = eks.scale_up(cluster, nodegroup, params.get("increment", 1))
+            increment = min(params.get("increment", 1), MAX_SCALE_STEP)
+            result = eks.scale_up(cluster, nodegroup, increment)
         elif action == "scale_down":
             result = eks.scale_down(cluster, nodegroup, params.get("decrement", 1))
         elif action == "maintain":

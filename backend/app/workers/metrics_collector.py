@@ -1,6 +1,6 @@
 import schedule
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from threading import Lock
 from sqlalchemy.orm import Session
 
@@ -22,7 +22,7 @@ _last_explanation = None
 
 
 def _utc_now_iso() -> str:
-    return datetime.utcnow().isoformat() + "Z"
+    return datetime.now(timezone.utc).isoformat() + "Z"
 
 
 def get_scheduler_state():
@@ -49,7 +49,7 @@ def job():
 
     db: Session = SessionLocal()
     try:
-        result = collect_and_store_metrics(db)
+        result = collect_and_store_metrics(db, user_id="system")
 
         with _state_lock:
             _scheduler_state["last_success"] = run_time

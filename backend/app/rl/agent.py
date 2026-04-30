@@ -30,16 +30,14 @@ class QLearningAgent:
         with open(self.model_path, "w", encoding="utf-8") as f:
             json.dump(self.q_table, f)
 
-    def _get_state_key(self, cpu):
-        try:
-            idx = int(cpu)
-        except Exception:
-            idx = 0
-        idx = max(0, min(99, idx))
-        return str(idx)
+    def _get_state_key(self, cpu, memory, requests):
+        cpu_bucket  = min(9, max(0, int(cpu) // 10))
+        mem_bucket  = min(9, max(0, int(memory) // 10))
+        req_bucket  = min(9, max(0, int(requests * 10)))
+        return f"{cpu_bucket}_{mem_bucket}_{req_bucket}"
 
-    def choose_action(self, cpu):
-        state_key = self._get_state_key(cpu)
+    def choose_action(self, cpu, memory, requests):
+        state_key = self._get_state_key(cpu, memory, requests)
         if state_key not in self.q_table:
             self.q_table[state_key] = [0.0 for _ in self.action_space]
 
@@ -50,13 +48,16 @@ class QLearningAgent:
         best_index = max(range(len(scores)), key=lambda i: scores[i])
         return best_index
 
-    def update(self, cpu, action_index, reward):
-        state_key = self._get_state_key(cpu)
+    def update(self, cpu, memory, requests, action_index, reward, next_cpu, next_memory, next_requests):
+        state_key = self._get_state_key(cpu, memory, requests)
         if state_key not in self.q_table:
             self.q_table[state_key] = [0.0 for _ in self.action_space]
 
+        next_state_key = self._get_state_key(next_cpu, next_memory, next_requests)
+        max_future_q = max(self.q_table.get(next_state_key, [0.0 for _ in self.action_space]))
+
         old_value = self.q_table[state_key][action_index]
-        new_value = old_value + self.alpha * (reward - old_value)
+        new_value = old_value + self.alpha * (reward + self.gamma * max_future_q - old_value)
         self.q_table[state_key][action_index] = new_value
         self._save_table()
 

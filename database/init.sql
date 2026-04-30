@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS forecasts (
 CREATE TABLE IF NOT EXISTS audit_log (
     id SERIAL PRIMARY KEY,
     timestamp TIMESTAMP NOT NULL,
+    user_id VARCHAR(128),
     action VARCHAR(255),
     state_before JSON,
     state_after JSON,

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 try:
     from prophet import Prophet
@@ -55,13 +55,14 @@ def _moving_average_predictions(values, periods=6):
     if len(recent) > 1:
         drift = (recent[-1] - recent[0]) / (len(recent) - 1)
 
-    return [baseline + (drift * step) for step in range(1, periods + 1)]
+    raw_preds = [baseline + (drift * step) for step in range(1, periods + 1)]
+    return [max(0.0, min(100.0, p)) for p in raw_preds]
 
 
 def _fallback_forecast(data, column):
     values = _extract_series(data, column)
     timestamps = _extract_timestamps(data)
-    start_time = timestamps[-1] if timestamps else datetime.utcnow()
+    start_time = timestamps[-1] if timestamps else datetime.now(timezone.utc)
     predictions = _moving_average_predictions(values, periods=6)
 
     return [

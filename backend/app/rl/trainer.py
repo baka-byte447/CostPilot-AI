@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.rl.environment import CloudEnvironment
 from app.rl.agent import QLearningAgent
@@ -37,8 +37,8 @@ def _bucket(value, size, max_bucket=None):
     return idx
 
 
-def _get_q_values(cpu):
-    state_key = agent._get_state_key(cpu)
+def _get_q_values(cpu, memory, request_load):
+    state_key = agent._get_state_key(cpu, memory, request_load)
     scores = agent.q_table.get(state_key)
     if not scores or len(scores) < len(agent.action_space):
         scores = [0.0 for _ in agent.action_space]
@@ -55,9 +55,9 @@ def decide_scaling_with_rl(cpu, memory, request_load):
     request_load = _to_float(request_load)
 
     env.reset(cpu, memory, request_load)
-    action_index = agent.choose_action(cpu)
+    action_index = agent.choose_action(cpu, memory, request_load)
     _, reward, proposed_replicas = env.step(action_index)
-    agent.update(cpu, action_index, reward)
+    agent.update(cpu, memory, request_load, action_index, reward, cpu, memory, request_load)
 
     proposed_action = ACTION_LABELS.get(action_index, "maintain")
     current_replicas = get_last_replicas()
@@ -77,14 +77,14 @@ def decide_scaling_with_rl(cpu, memory, request_load):
     record_replicas(safe_replicas)
 
     return {
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "action": safe_action,
         "proposed_action": proposed_action,
         "action_index": action_index,
         "replicas": safe_replicas,
         "reward": reward,
         "epsilon": agent.epsilon,
-        "q_values": _get_q_values(cpu),
+        "q_values": _get_q_values(cpu, memory, request_load),
         "cpu": cpu,
         "memory": memory,
         "request_load": request_load,
@@ -98,7 +98,7 @@ def decide_scaling_with_rl(cpu, memory, request_load):
 
 
 def get_agent_stats():
-    total_states = 100
+    total_states = 1000
     visited_states = len(agent.q_table)
     scores = []
     nonzero_entries = 0

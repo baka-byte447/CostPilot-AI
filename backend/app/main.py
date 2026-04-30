@@ -70,8 +70,8 @@ app = FastAPI(
 )
 
 allowed_origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
-if not allowed_origins:
-    allowed_origins = ["*"]
+if not allowed_origins or allowed_origins == ["*"]:
+    allowed_origins = ["http://localhost:5173"]
 
 app.add_middleware(
     CORSMiddleware,
