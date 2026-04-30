@@ -631,3 +631,51 @@ def get_audit_logs(action_id, limit=100):
         logger.error(f"Failed to fetch audit logs for {action_id}: {e}")
         return []
 
+def get_user_by_email(email):
+    """Return user record by email."""
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+    except sqlite3.Error as e:
+        logger.error(f"Failed to fetch user {email}: {e}")
+        return None
+
+def create_user(email, password_hash):
+    """Create a new user and return the user_id."""
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO users (email, password_hash) VALUES (?, ?)",
+                (email, password_hash)
+            )
+            conn.commit()
+            return cursor.lastrowid
+    except sqlite3.IntegrityError:
+        return None
+    except sqlite3.Error as e:
+        logger.error(f"Failed to create user {email}: {e}")
+        return None
+
+def update_user_credentials(user_id, access_key, secret_key, region, alert_email):
+    """Update AWS credentials and alert email for a user."""
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """UPDATE users SET 
+                   aws_access_key_id = ?, 
+                   aws_secret_access_key = ?, 
+                   aws_region = ?, 
+                   alert_email = ? 
+                   WHERE id = ?""",
+                (access_key, secret_key, region, alert_email, user_id)
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+    except sqlite3.Error as e:
+        logger.error(f"Failed to update credentials for user {user_id}: {e}")
+        return False
