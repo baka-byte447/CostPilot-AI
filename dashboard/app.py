@@ -56,6 +56,9 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable static file caching durin
 app.secret_key = os.getenv("SECRET_KEY", "costpilot-secret-key-12345")
 CORS(app)
 
+# Initialize database tables on startup (works for both local and Gunicorn/Render)
+setup_db()
+
 # --- Authentication Routes ---
 @app.route("/api/auth/status")
 def auth_status():
@@ -2168,6 +2171,25 @@ def start_dashboard(host=None, port=None):
     # In production, we usually run via Gunicorn, but this is kept for local testing
     app.run(host=host, port=port, debug=not is_prod)
 
+
+def run_initial_scan():
+    """Run a scan in the background after the server starts."""
+    try:
+        import time
+        import sys
+        time.sleep(5) # Give the server time to fully start
+        logger.info("Starting initial background scan...")
+        from main import main
+        # Simulate CLI call to scan
+        sys.argv = ["main.py", "--scan"]
+        main()
+        logger.info("Initial background scan complete.")
+    except Exception as e:
+        logger.error(f"Background scan failed: {e}")
+
+# Start the initial scan in a separate thread so it doesn't block the web server
+import threading
+threading.Thread(target=run_initial_scan, daemon=True).start()
 
 if __name__ == "__main__":
     start_dashboard()
