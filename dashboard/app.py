@@ -82,6 +82,16 @@ def auth_signup():
     if user_id:
         session["user_id"] = user_id
         session["email"] = email
+
+        # Ensure the new account has a default alert recipient for Settings.
+        try:
+            from db.database import get_connection
+            with get_connection() as conn:
+                conn.execute("UPDATE users SET alert_email = ? WHERE id = ?", (email, user_id))
+                conn.commit()
+        except Exception as e:
+            logger.warning(f"Could not seed alert_email for new user {user_id}: {e}")
+
         return jsonify({"status": "ok", "message": "Signup successful", "user_id": user_id})
     else:
         return jsonify({"status": "error", "message": "Email already registered"}), 409
@@ -119,6 +129,17 @@ def auth_login():
     if user and check_password_hash(user["password_hash"], password):
         session["user_id"] = user["id"]
         session["email"] = user["email"]
+
+        # Backfill missing alert_email for older users so Settings has a default.
+        if not user.get("alert_email"):
+            try:
+                from db.database import get_connection
+                with get_connection() as conn:
+                    conn.execute("UPDATE users SET alert_email = ? WHERE id = ?", (user["email"], user["id"]))
+                    conn.commit()
+            except Exception as e:
+                logger.warning(f"Could not backfill alert_email for user {user['id']}: {e}")
+
         return jsonify({"status": "ok", "message": "Logged in successfully"})
     return jsonify({"status": "error", "message": "Invalid email or password"}), 401
 
@@ -238,64 +259,6 @@ def api_summary():
         "breakdown": breakdown
     })
 
-
-@app.route("/api/settings", methods=["GET", "POST"])
-def api_settings():
-    if "user_id" not in session:
-        return jsonify({"status": "error", "message": "Unauthorized"}), 401
-        
-    from db.database import get_connection
-    user_id = session["user_id"]
-    
-    if request.method == "POST":
-        data = request.json
-        access_key = data.get("aws_access_key")
-        secret_key = data.get("aws_secret_key")
-        region = data.get("aws_region", "ap-south-1")
-        alert_email = data.get("alert_email")
-        
-        try:
-            with get_connection() as conn:
-                conn.execute(
-                    """UPDATE users SET 
-                       aws_access_key_id = ?, 
-                       aws_secret_access_key = ?, 
-                       aws_region = ?, 
-                       alert_email = ? 
-                       WHERE id = ?""",
-                    (access_key, secret_key, region, alert_email, user_id)
-                )
-                conn.commit()
-            return jsonify({"status": "ok", "message": "Settings saved successfully"})
-        except Exception as e:
-            return jsonify({"status": "error", "message": str(e)}), 500
-            
-    # GET request
-    try:
-        with get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT email, aws_access_key_id, aws_secret_access_key, aws_region, alert_email FROM users WHERE id = ?", (user_id,))
-            row = cursor.fetchone()
-            
-            if not row:
-                return jsonify({"status": "error", "message": "User not found"}), 404
-                
-            has_aws = bool(row["aws_access_key_id"])
-            
-            return jsonify({
-                "aws": {
-                    "configured": has_aws,
-                    "access_key": "********" if has_aws else "",
-                    "secret_key": "********" if has_aws else "",
-                    "region": row["aws_region"] or "ap-south-1"
-                },
-                "email": {
-                    "configured": bool(row["alert_email"] or row["email"]),
-                    "address": row["alert_email"] or row["email"]
-                }
-            })
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route("/api/budget")
 def api_budget():
@@ -910,7 +873,34 @@ def _read_env():
                     env["AWS_SECRET_ACCESS_KEY"] = user["aws_secret_access_key"]
                 if user.get("aws_region"):
                     env["AWS_DEFAULT_REGION"] = user["aws_region"]
+                if user.get("aws_regions"):
+                    env["AWS_REGIONS"] = user["aws_regions"]
+                elif user.get("aws_region"):
                     env["AWS_REGIONS"] = user["aws_region"]
+
+                if user.get("smtp_host"):
+                    env["SMTP_HOST"] = str(user["smtp_host"])
+                if user.get("smtp_port"):
+                    env["SMTP_PORT"] = str(user["smtp_port"])
+                if user.get("smtp_user"):
+                    env["SMTP_USER"] = str(user["smtp_user"])
+                if user.get("smtp_password"):
+                    env["SMTP_PASSWORD"] = str(user["smtp_password"])
+                if user.get("alert_from"):
+                    env["ALERT_FROM"] = str(user["alert_from"])
+
+                if user.get("budget_threshold") is not None:
+                    env["BUDGET_THRESHOLD"] = str(user["budget_threshold"])
+                if user.get("snapshot_age_days") is not None:
+                    env["SNAPSHOT_AGE_DAYS"] = str(user["snapshot_age_days"])
+                if user.get("ec2_cpu_threshold") is not None:
+                    env["EC2_CPU_THRESHOLD"] = str(user["ec2_cpu_threshold"])
+
+                # Use per-user alert email if present; otherwise fall back to registered email.
+                if user.get("alert_email"):
+                    env["ALERT_TO"] = user["alert_email"]
+                elif user.get("email"):
+                    env["ALERT_TO"] = user["email"]
         except Exception as e:
             logger.warning(f"Could not load user credentials: {e}")
             
@@ -2071,18 +2061,52 @@ def api_save_settings():
                         
                 env[env_key] = val_str
 
+        if not env.get("ALERT_TO") and session.get("email"):
+            env["ALERT_TO"] = session["email"]
+
         _write_env(env)
 
         if "user_id" in session:
             try:
                 from db.database import update_user_credentials
+                from db.database import get_connection
+                alert_target = env.get("ALERT_TO", "") or session.get("email", "")
                 update_user_credentials(
                     session["user_id"],
                     env.get("AWS_ACCESS_KEY_ID", ""),
                     env.get("AWS_SECRET_ACCESS_KEY", ""),
                     env.get("AWS_DEFAULT_REGION", "ap-south-1"),
-                    env.get("ALERT_TO", "")
+                    alert_target
                 )
+
+                # Persist full settings per user so each login restores their own values.
+                with get_connection() as conn:
+                    conn.execute(
+                        """UPDATE users SET
+                           aws_regions = ?,
+                           smtp_host = ?,
+                           smtp_port = ?,
+                           smtp_user = ?,
+                           smtp_password = ?,
+                           alert_from = ?,
+                           budget_threshold = ?,
+                           snapshot_age_days = ?,
+                           ec2_cpu_threshold = ?
+                           WHERE id = ?""",
+                        (
+                            env.get("AWS_REGIONS", ""),
+                            env.get("SMTP_HOST", ""),
+                            int(env.get("SMTP_PORT", "587")) if str(env.get("SMTP_PORT", "")).strip() else None,
+                            env.get("SMTP_USER", ""),
+                            env.get("SMTP_PASSWORD", ""),
+                            env.get("ALERT_FROM", ""),
+                            float(env.get("BUDGET_THRESHOLD", "50.00")) if str(env.get("BUDGET_THRESHOLD", "")).strip() else None,
+                            int(env.get("SNAPSHOT_AGE_DAYS", "30")) if str(env.get("SNAPSHOT_AGE_DAYS", "")).strip() else None,
+                            float(env.get("EC2_CPU_THRESHOLD", "5.0")) if str(env.get("EC2_CPU_THRESHOLD", "")).strip() else None,
+                            session["user_id"],
+                        ),
+                    )
+                    conn.commit()
             except Exception as e:
                 logger.warning(f"Could not save credentials to user DB: {e}")
 

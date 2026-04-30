@@ -34,6 +34,24 @@ def setup_db():
                 )
             """)
 
+            # Backward-compatible user settings columns (older DBs may not have these).
+            user_extra_columns = {
+                "aws_regions": "TEXT",
+                "smtp_host": "TEXT",
+                "smtp_port": "INTEGER",
+                "smtp_user": "TEXT",
+                "smtp_password": "TEXT",
+                "alert_from": "TEXT",
+                "budget_threshold": "REAL",
+                "snapshot_age_days": "INTEGER",
+                "ec2_cpu_threshold": "REAL",
+            }
+            for col_name, col_type in user_extra_columns.items():
+                try:
+                    cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}")
+                except sqlite3.OperationalError:
+                    pass
+
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS scans (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -649,8 +667,8 @@ def create_user(email, password_hash):
         with get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "INSERT INTO users (email, password_hash) VALUES (?, ?)",
-                (email, password_hash)
+                "INSERT INTO users (email, password_hash, alert_email) VALUES (?, ?, ?)",
+                (email, password_hash, email)
             )
             conn.commit()
             return cursor.lastrowid
