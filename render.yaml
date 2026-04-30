@@ -1,20 +1,33 @@
 services:
+  # 1. The Web Dashboard (Frontend + API)
   - type: web
-    name: costpilot-ai
+    name: costpilot-dashboard
     env: python
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn --bind 0.0.0.0:$PORT --chdir . dashboard.app:app
     envVars:
       - key: ENV
         value: production
-      - key: HOST
-        value: 0.0.0.0
+      - key: DB_PATH
+        value: /data/optimizer.db
       - key: PYTHON_VERSION
         value: 3.11.0
+    disk:
+      name: costpilot-data
+      mountPath: /data
+      sizeGB: 1
+    healthCheckPath: /healthz
+
+  # 2. The Scanning Agent (Background Worker)
+  - type: worker
+    name: costpilot-scanner
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py --scan
+    envVars:
       - key: DB_PATH
         value: /data/optimizer.db
     disk:
       name: costpilot-data
       mountPath: /data
       sizeGB: 1
-    healthCheckPath: /healthz
