@@ -92,6 +92,9 @@ def auth_signup():
         except Exception as e:
             logger.warning(f"Could not seed alert_email for new user {user_id}: {e}")
 
+        # Keep runtime defaults sane for first-time users on hosted environments.
+        os.environ["ALERT_TO"] = email
+
         return jsonify({"status": "ok", "message": "Signup successful", "user_id": user_id})
     else:
         return jsonify({"status": "error", "message": "Email already registered"}), 409
@@ -114,6 +117,25 @@ def auth_connect():
     success = update_user_credentials(session["user_id"], access_key, secret_key, region, session["email"])
     
     if success:
+        # Apply immediately for runtime AWS calls (Render may not rely on local .env).
+        os.environ["AWS_ACCESS_KEY_ID"] = access_key
+        os.environ["AWS_SECRET_ACCESS_KEY"] = secret_key
+        os.environ["AWS_DEFAULT_REGION"] = region
+        os.environ["AWS_REGIONS"] = region
+
+        # Best-effort persist for current container lifecycle.
+        try:
+            env = _read_env()
+            env["AWS_ACCESS_KEY_ID"] = access_key
+            env["AWS_SECRET_ACCESS_KEY"] = secret_key
+            env["AWS_DEFAULT_REGION"] = region
+            env["AWS_REGIONS"] = region
+            if session.get("email"):
+                env["ALERT_TO"] = session["email"]
+            _write_env(env)
+        except Exception as e:
+            logger.warning(f"Could not persist connected AWS credentials to .env: {e}")
+
         return jsonify({"status": "ok", "message": "AWS credentials saved"})
     else:
         return jsonify({"status": "error", "message": "Failed to save credentials"}), 500
@@ -139,6 +161,43 @@ def auth_login():
                     conn.commit()
             except Exception as e:
                 logger.warning(f"Could not backfill alert_email for user {user['id']}: {e}")
+
+        # Apply user-saved settings to runtime env so APIs/scans work right after login.
+        try:
+            if user.get("aws_access_key_id"):
+                os.environ["AWS_ACCESS_KEY_ID"] = str(user["aws_access_key_id"])
+            if user.get("aws_secret_access_key"):
+                os.environ["AWS_SECRET_ACCESS_KEY"] = str(user["aws_secret_access_key"])
+            if user.get("aws_region"):
+                os.environ["AWS_DEFAULT_REGION"] = str(user["aws_region"])
+            os.environ["AWS_REGIONS"] = str(user.get("aws_regions") or user.get("aws_region") or "ap-south-1")
+
+            if user.get("smtp_host"):
+                os.environ["SMTP_HOST"] = str(user["smtp_host"])
+            if user.get("smtp_port"):
+                os.environ["SMTP_PORT"] = str(user["smtp_port"])
+            if user.get("smtp_user"):
+                os.environ["SMTP_USER"] = str(user["smtp_user"])
+            if user.get("smtp_password"):
+                os.environ["SMTP_PASSWORD"] = str(user["smtp_password"])
+            if user.get("alert_from"):
+                os.environ["ALERT_FROM"] = str(user["alert_from"])
+
+            alert_to = user.get("alert_email") or user.get("email")
+            if alert_to:
+                os.environ["ALERT_TO"] = str(alert_to)
+
+            if user.get("budget_threshold") is not None:
+                os.environ["BUDGET_THRESHOLD"] = str(user["budget_threshold"])
+            if user.get("snapshot_age_days") is not None:
+                os.environ["SNAPSHOT_AGE_DAYS"] = str(user["snapshot_age_days"])
+            if user.get("ec2_cpu_threshold") is not None:
+                os.environ["EC2_CPU_THRESHOLD"] = str(user["ec2_cpu_threshold"])
+
+            config.BUDGET_THRESHOLD = float(os.getenv("BUDGET_THRESHOLD", "50.00"))
+            config.AWS_REGION = os.getenv("AWS_DEFAULT_REGION", "ap-south-1")
+        except Exception as e:
+            logger.warning(f"Could not apply user runtime settings at login: {e}")
 
         return jsonify({"status": "ok", "message": "Logged in successfully"})
     return jsonify({"status": "error", "message": "Invalid email or password"}), 401
