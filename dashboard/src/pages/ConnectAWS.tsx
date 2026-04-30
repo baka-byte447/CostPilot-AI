@@ -41,6 +41,7 @@ export default function ConnectAWS() {
 
   // Form fields
   const [roleName, setRoleName] = useState("CostPilotAccessRole");
+  const [controlAccountId, setControlAccountId] = useState("");
   const [allowWrite, setAllowWrite] = useState(false);
   const [accountId, setAccountId] = useState("");
   const [roleArn, setRoleArn] = useState("");
@@ -72,7 +73,7 @@ export default function ConnectAWS() {
     setError("");
     setLoading(true);
     try {
-      const res = await awsSetup(roleName, allowWrite);
+      const res = await awsSetup(controlAccountId, roleName, allowWrite);
       setSetupData(res.data);
       setExternalId(res.data.external_id);
       setStep("deploy");
@@ -118,12 +119,16 @@ export default function ConnectAWS() {
   }
 
   async function handleDisconnect() {
-    if (!confirm("Are you sure you want to disconnect this AWS account?")) return;
     try {
       await awsDeleteConnection();
       setConnection(null);
       setSetupData(null);
       setVerifyResult(null);
+      setAccountId("");
+      setRoleArn("");
+      setExternalId("");
+      setLabel("");
+      setControlAccountId("");
       setStep("idle");
     } catch (e: any) {
       setError(e?.response?.data?.detail || "Failed to disconnect");
@@ -192,9 +197,9 @@ export default function ConnectAWS() {
                   <span className="material-symbols-outlined text-sm">verified</span>
                   Verify
                 </button>
-                <button onClick={handleDisconnect} className="px-3 py-1.5 rounded-lg ghost-button text-xs font-semibold text-primary flex items-center gap-1.5 hover:bg-primary/10">
-                  <span className="material-symbols-outlined text-sm">link_off</span>
-                  Disconnect
+                <button onClick={handleDisconnect} className="px-3 py-1.5 rounded-lg ghost-button text-xs font-semibold text-red-500 flex items-center gap-1.5 hover:bg-red-500/10 border border-red-500/20">
+                  <span className="material-symbols-outlined text-sm">delete</span>
+                  Delete Details
                 </button>
               </div>
             </div>
@@ -282,6 +287,15 @@ export default function ConnectAWS() {
                 placeholder="CostPilotAccessRole"
               />
             </div>
+            <div>
+              <label className="block text-xs font-semibold text-textDim mb-1.5 uppercase tracking-wider">App AWS Account ID (Principal)</label>
+              <input
+                value={controlAccountId}
+                onChange={(e) => setControlAccountId(e.target.value)}
+                className="w-full glass-input rounded-lg py-2.5 px-4 text-sm text-text focus:outline-none focus:ring-1 ring-primary/40"
+                placeholder="123456789012"
+              />
+            </div>
             <label className="flex items-center gap-2.5 text-sm text-textMuted">
               <input
                 type="checkbox"
@@ -295,7 +309,7 @@ export default function ConnectAWS() {
 
           <button
             onClick={handleStartSetup}
-            disabled={loading}
+            disabled={loading || !controlAccountId.trim()}
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl optimizer-gradient optimizer-glow text-sm font-semibold transition-all hover:brightness-110 disabled:opacity-50"
           >
             <span className="material-symbols-outlined text-lg">rocket_launch</span>

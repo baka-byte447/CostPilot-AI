@@ -18,6 +18,7 @@ router = APIRouter(prefix="/aws", tags=["aws"])
 # ──────────────────────────── Schemas ────────────────────────────
 
 class AwsSetupRequest(BaseModel):
+    control_account_id: str = Field(..., description="The AWS Account ID hosting the app backend")
     role_name: str = Field("CostPilotAccessRole", min_length=1, max_length=64)
     allow_write: bool = False
 
@@ -96,7 +97,7 @@ def setup_connection(
 ):
     """Generate an External ID and a CloudFormation template for the user
     to deploy in their AWS account.  No credentials are collected here."""
-    control_account_id = settings.aws_control_account_id or "000000000000"
+    control_account_id = body.control_account_id.strip()
 
     external_id = secrets.token_urlsafe(24)
     role_name = body.role_name.strip()
@@ -193,7 +194,7 @@ def delete_connection(
     )
     if not connection:
         raise HTTPException(status_code=404, detail="AWS connection not found")
-    connection.is_active = False
+    db.delete(connection)
     db.commit()
     return {"success": True}
 

@@ -1,4 +1,3 @@
-from textwrap import dedent, indent
 from typing import List
 
 READ_ONLY_ACTIONS = [
@@ -29,8 +28,8 @@ WRITE_ACTIONS = [
 
 
 def _format_actions(actions: List[str], indent_size: int) -> str:
-  prefix = " " * indent_size
-  return "\n".join([f"{prefix}- \"{action}\"" for action in actions])
+    prefix = " " * indent_size
+    return "\n".join([f"{prefix}- \"{action}\"" for action in actions])
 
 
 def build_role_template(
@@ -39,57 +38,51 @@ def build_role_template(
     role_name: str,
     allow_write: bool = False,
 ) -> str:
-    read_only_actions = _format_actions(READ_ONLY_ACTIONS, 16)
-    write_actions = _format_actions(WRITE_ACTIONS, 8)
+    read_only_actions = _format_actions(READ_ONLY_ACTIONS, 18)
+    write_actions = _format_actions(WRITE_ACTIONS, 18)
 
-    write_block = ""
-    if allow_write:
-        write_policy = dedent(
-            f"""
-            - PolicyName: CostPilotWrite
-              PolicyDocument:
-                Version: "2012-10-17"
-                Statement:
-                  - Effect: Allow
-                    Action:
-{write_actions}
-                    Resource: "*"
-            """
-        ).rstrip()
-        write_block = indent(write_policy, " " * 8)
-
-    template = dedent(
-        f"""
-        AWSTemplateFormatVersion: "2010-09-09"
-        Description: CostPilot cross-account access role
-        Resources:
-          CostPilotAccessRole:
-            Type: AWS::IAM::Role
-            Properties:
-              RoleName: {role_name}
-              AssumeRolePolicyDocument:
-                Version: "2012-10-17"
-                Statement:
-                  - Effect: Allow
-                    Principal:
-                      AWS: "arn:aws:iam::{control_account_id}:root"
-                    Action: "sts:AssumeRole"
-                    Condition:
-                      StringEquals:
-                        sts:ExternalId: "{external_id}"
-              Policies:
-                - PolicyName: CostPilotReadOnly
-                  PolicyDocument:
-                    Version: "2012-10-17"
-                    Statement:
-                      - Effect: Allow
-                        Action:
+    template = f"""AWSTemplateFormatVersion: "2010-09-09"
+Description: CostPilot cross-account access role
+Resources:
+  CostPilotAccessRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: {role_name}
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: "arn:aws:iam::{control_account_id}:root"
+            Action: "sts:AssumeRole"
+            Condition:
+              StringEquals:
+                sts:ExternalId: "{external_id}"
+      Policies:
+        - PolicyName: CostPilotReadOnly
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
 {read_only_actions}
-                        Resource: "*"
-        """
-    ).rstrip()
+                Resource: "*"
+"""
+    if allow_write:
+        template += f"""        - PolicyName: CostPilotWrite
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+{write_actions}
+                Resource: "*"
+"""
 
-    if write_block:
-        template = f"{template}\n{write_block}"
-
-    return template + "\n"
+    template += """
+Outputs:
+  RoleARN:
+    Description: The ARN of the created IAM role
+    Value: !GetAtt CostPilotAccessRole.Arn
+"""
+    return template

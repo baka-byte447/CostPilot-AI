@@ -1,7 +1,7 @@
 import axios from "axios"
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000",
+  baseURL: "",
   timeout: 10000,
 })
 
@@ -33,8 +33,8 @@ export const authRegister       = (email: string, password: string) => api.post(
 export const authLogin          = (email: string, password: string) => api.post("/api/auth/login", { email, password })
 
 // ── AWS Connection Flow ──
-export const awsSetup           = (role_name?: string, allow_write?: boolean) =>
-  api.post("/api/aws/connection/setup", { role_name: role_name || "CostPilotAccessRole", allow_write: allow_write || false })
+export const awsSetup           = (control_account_id: string, role_name?: string, allow_write?: boolean) =>
+  api.post("/api/aws/connection/setup", { control_account_id, role_name: role_name || "CostPilotAccessRole", allow_write: allow_write || false })
 export const awsSaveConnection  = (data: { account_id: string; role_arn: string; external_id: string; regions: string[]; label?: string }) =>
   api.post("/api/aws/connection", data)
 export const awsGetConnection   = () => api.get("/api/aws/connection")
