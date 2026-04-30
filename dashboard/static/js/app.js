@@ -2507,3 +2507,84 @@ window.searchInventory = function(val) {
     inventorySearchQuery = val;
     renderInventory();
 }
+// === SETTINGS ===
+window.loadSettings = async function() {
+    try {
+        const res = await fetch("/api/settings");
+        if (!res.ok) return;
+        
+        const data = await res.json();
+        
+        const awsStatus = document.getElementById("aws-status");
+        if (awsStatus) {
+            awsStatus.textContent = data.aws.configured ? "Configured" : "Not configured";
+            awsStatus.style.color = data.aws.configured ? "var(--green)" : "var(--danger)";
+        }
+        
+        const emailStatus = document.getElementById("email-status");
+        if (emailStatus) {
+            emailStatus.textContent = data.email.configured ? "Configured" : "Not configured";
+            emailStatus.style.color = data.email.configured ? "var(--green)" : "var(--danger)";
+            
+            const emailInput = document.getElementById("alert-email");
+            if (emailInput && !emailInput.value) {
+                emailInput.value = data.email.address;
+            }
+        }
+        
+        const regionInput = document.getElementById("aws-region");
+        if (regionInput && !regionInput.value) {
+            regionInput.value = data.aws.region || "ap-south-1";
+        }
+    } catch (e) {
+        console.error("Failed to load settings", e);
+    }
+}
+
+window.saveSettings = async function() {
+    const btn = document.getElementById("save-settings-btn");
+    const status = document.getElementById("settings-save-status");
+    const originalText = btn.textContent;
+    
+    btn.disabled = true;
+    btn.textContent = "Saving...";
+    
+    const access_key = document.getElementById("aws-access-key")?.value;
+    const secret_key = document.getElementById("aws-secret-key")?.value;
+    const region = document.getElementById("aws-region")?.value;
+    const alert_email = document.getElementById("alert-email")?.value;
+    
+    try {
+        const res = await fetch("/api/settings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                aws_access_key: access_key,
+                aws_secret_key: secret_key,
+                aws_region: region,
+                alert_email: alert_email
+            })
+        });
+        
+        if (res.ok) {
+            showToast("success", "Settings Saved", "Your configuration has been updated.");
+            status.textContent = "Saved successfully";
+            status.style.color = "var(--green)";
+            loadSettings();
+        } else {
+            const data = await res.json();
+            status.textContent = data.message || "Failed to save";
+            status.style.color = "var(--danger)";
+        }
+    } catch (e) {
+        status.textContent = "Network error";
+        status.style.color = "var(--danger)";
+    }
+    
+    btn.disabled = false;
+    btn.textContent = originalText;
+    
+    setTimeout(() => {
+        if (status) status.textContent = "";
+    }, 3000);
+}

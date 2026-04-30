@@ -239,6 +239,64 @@ def api_summary():
     })
 
 
+@app.route("/api/settings", methods=["GET", "POST"])
+def api_settings():
+    if "user_id" not in session:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+        
+    from db.database import get_connection
+    user_id = session["user_id"]
+    
+    if request.method == "POST":
+        data = request.json
+        access_key = data.get("aws_access_key")
+        secret_key = data.get("aws_secret_key")
+        region = data.get("aws_region", "ap-south-1")
+        alert_email = data.get("alert_email")
+        
+        try:
+            with get_connection() as conn:
+                conn.execute(
+                    """UPDATE users SET 
+                       aws_access_key_id = ?, 
+                       aws_secret_access_key = ?, 
+                       aws_region = ?, 
+                       alert_email = ? 
+                       WHERE id = ?""",
+                    (access_key, secret_key, region, alert_email, user_id)
+                )
+                conn.commit()
+            return jsonify({"status": "ok", "message": "Settings saved successfully"})
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 500
+            
+    # GET request
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT email, aws_access_key_id, aws_secret_access_key, aws_region, alert_email FROM users WHERE id = ?", (user_id,))
+            row = cursor.fetchone()
+            
+            if not row:
+                return jsonify({"status": "error", "message": "User not found"}), 404
+                
+            has_aws = bool(row["aws_access_key_id"])
+            
+            return jsonify({
+                "aws": {
+                    "configured": has_aws,
+                    "access_key": "********" if has_aws else "",
+                    "secret_key": "********" if has_aws else "",
+                    "region": row["aws_region"] or "ap-south-1"
+                },
+                "email": {
+                    "configured": bool(row["alert_email"] or row["email"]),
+                    "address": row["alert_email"] or row["email"]
+                }
+            })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route("/api/budget")
 def api_budget():
     scan = get_latest_scan()

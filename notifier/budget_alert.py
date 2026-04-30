@@ -56,15 +56,17 @@ def check_budget(total_waste, findings):
     return result
 
 
-def send_alert_email(budget_result, findings):
+def send_alert_email(budget_result, findings, to_email=None):
     """
     Send an email alert when budget threshold is exceeded.
 
     Requires SMTP settings to be configured in .env.
     Returns True if email was sent, False otherwise.
     """
+    recipient = to_email or ALERT_TO
+    
     # Check if email is configured
-    if not all([SMTP_USER, SMTP_PASSWORD, ALERT_FROM, ALERT_TO]):
+    if not all([SMTP_USER, SMTP_PASSWORD, ALERT_FROM, recipient]):
         logger.warning(
             "Email not configured. Set SMTP_USER, SMTP_PASSWORD, ALERT_FROM, "
             "ALERT_TO in .env to enable email alerts."
@@ -79,7 +81,7 @@ def send_alert_email(budget_result, findings):
             f"${budget_result['total_waste']:.2f} / ${budget_result['threshold']:.2f}"
         )
         msg["From"] = ALERT_FROM
-        msg["To"] = ALERT_TO
+        msg["To"] = recipient
 
         # Plain text version
         text_body = _build_text_email(budget_result, findings)
@@ -94,9 +96,9 @@ def send_alert_email(budget_result, findings):
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
             server.starttls()
             server.login(SMTP_USER, SMTP_PASSWORD)
-            server.sendmail(ALERT_FROM, ALERT_TO.split(","), msg.as_string())
+            server.sendmail(ALERT_FROM, recipient.split(","), msg.as_string())
 
-        logger.info(f"Budget alert email sent to {ALERT_TO}")
+        logger.info(f"Budget alert email sent to {recipient}")
         return True
 
     except smtplib.SMTPAuthenticationError:

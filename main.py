@@ -151,7 +151,19 @@ Examples:
                 title="Budget Alert",
                 border_style="bright_red"
             ))
-            email_sent = send_alert_email(budget, findings)
+            to_email = None
+            try:
+                from db.database import get_connection
+                with get_connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT email, alert_email FROM users LIMIT 1")
+                    row = cursor.fetchone()
+                    if row:
+                        to_email = row["alert_email"] or row["email"]
+            except Exception as e:
+                pass
+                
+            email_sent = send_alert_email(budget, findings, to_email=to_email)
             save_alert("budget_exceeded",
                 f"Waste ${budget['total_waste']:.2f} exceeds threshold ${budget['threshold']:.2f}",
                 budget['total_waste'], budget['threshold'], email_sent)
