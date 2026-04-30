@@ -44,9 +44,10 @@ class QLearningAgent:
         np.save(MODEL_PATH, self.q_table)
 
     def get_state_index(self, cpu: float, memory: float, request_load: float) -> tuple:
-        cpu = max(0.0, cpu)
-        memory = max(0.0, memory)
-        request_load = max(0.0, request_load)
+        # Azure VMSS does not expose memory % by default — treat None as 0.0
+        cpu          = max(0.0, float(cpu)          if cpu          is not None else 0.0)
+        memory       = max(0.0, float(memory)       if memory       is not None else 0.0)
+        request_load = max(0.0, float(request_load) if request_load is not None else 0.0)
 
         cpu_bucket = min(int(cpu / 10), CPU_BINS - 1)
         mem_bucket = min(int(memory / 10), MEMORY_BINS - 1)

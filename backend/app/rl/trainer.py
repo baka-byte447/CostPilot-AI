@@ -11,6 +11,13 @@ _last_reward_dict = {}
 def decide_scaling_with_rl(user_id: int, cpu: float, memory: float, request_load: float, forecast: dict = None, creds: dict = None) -> dict:
     from app.optimizer.safety_engine import check_action
 
+    # Azure VMSS does not expose memory % without guest-level monitoring.
+    # Default to 50.0 (neutral mid-range) so the RL agent can still operate.
+    # request_load comes from NetworkIn KB/s; default 0.0 if unavailable.
+    cpu          = float(cpu)          if cpu          is not None else 0.0
+    memory       = float(memory)       if memory       is not None else 50.0
+    request_load = float(request_load) if request_load is not None else 0.0
+
     _env.reset(cpu, memory, request_load, forecast=forecast)
 
     proposed_action_idx = _agent.choose_action(cpu, memory, request_load)

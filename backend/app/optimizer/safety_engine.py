@@ -42,6 +42,11 @@ def check_action(
     import time
     global _last_action_time, _last_replicas
 
+    # Coerce None to safe float defaults (mirrors trainer.py convention)
+    cpu          = float(cpu)          if cpu          is not None else 0.0
+    memory       = float(memory)       if memory       is not None else 50.0
+    request_load = float(request_load) if request_load is not None else 0.0
+
     violations = []
     safe_action = proposed_action
     blocked = False
