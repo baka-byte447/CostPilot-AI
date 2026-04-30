@@ -11,12 +11,17 @@ let serviceBarChart = null;
 let highestSeverity = "low";
 
 
-Chart.defaults.color = "#94a3b8";
+Chart.defaults.color = "rgba(246,247,235,0.55)";
 
 // === UTILS ===
 function animateValue(id, value, prefix = "") {
     const obj = document.getElementById(id);
     if (!obj) return;
+    
+    if (value === undefined || value === null) {
+        obj.textContent = prefix + (prefix === "$" ? "0.00" : "0");
+        return;
+    }
     
     if (typeof value !== 'number') {
         obj.textContent = prefix + value;
@@ -71,25 +76,143 @@ Chart.defaults.font.family = "'Inter', sans-serif";
 Chart.defaults.font.size = 12;
 
 const COLORS = {
-    EBS: { bg: "rgba(99,102,241,0.15)", border: "#6366f1", solid: "#818cf8" },
-    "Stopped EC2": { bg: "rgba(6,182,212,0.15)", border: "#06b6d4", solid: "#22d3ee" },
-    "Idle EC2": { bg: "rgba(168,85,247,0.15)", border: "#a855f7", solid: "#c084fc" },
+    EBS: { bg: "rgba(233,79,55,0.15)", border: "#E94F37", solid: "#f0735f" },
+    "Stopped EC2": { bg: "rgba(233,79,55,0.12)", border: "#E94F37", solid: "#f0735f" },
+    "Idle EC2": { bg: "rgba(233,79,55,0.15)", border: "#E94F37", solid: "#f0735f" },
     ElasticIP: { bg: "rgba(245,158,11,0.15)", border: "#f59e0b", solid: "#fbbf24" },
-    Snapshot: { bg: "rgba(236,72,153,0.15)", border: "#ec4899", solid: "#f472b6" },
+    Snapshot: { bg: "rgba(34,197,94,0.15)", border: "#22c55e", solid: "#4ade80" },
 };
 
 // === INIT ===
 document.addEventListener("DOMContentLoaded", () => {
     initParticles();
     initTypingEffect();
-    loadDashboard();
+    checkAuthStatus();
     setupFilters();
     setupSorting();
     loadAIProvider();
     switchTab('home');
-    // Silent sync on page load to reconcile stale resources
-    syncStatus(true);
 });
+
+// === AUTHENTICATION ===
+let authMode = 'login';
+
+async function checkAuthStatus() {
+    try {
+        const res = await fetch("/api/auth/status");
+        const data = await res.json();
+        const overlay = document.getElementById("auth-overlay");
+        
+        if (data.authenticated) {
+            if (overlay) overlay.style.display = "none";
+            
+            // Only load data once we know we are authenticated
+            loadDashboard();
+            syncStatus(true);
+
+            // Check if AWS is configured
+            const sRes = await fetch("/api/settings");
+            if (sRes.ok) {
+                const sData = await sRes.json();
+                if (!sData.aws.configured) {
+                    switchTab('settings');
+                    showToast('warning', 'Setup Required', 'Please configure your AWS credentials to continue.', 10000);
+                }
+            }
+        } else {
+            if (overlay) overlay.style.display = "flex";
+        }
+    } catch (e) {
+        console.error("Auth check failed", e);
+    }
+}
+
+function toggleAuthMode() {
+    authMode = authMode === 'login' ? 'signup' : 'login';
+    document.getElementById('auth-title').textContent = authMode === 'login' ? 'Welcome to CostPilot' : 'Create an Account';
+    document.getElementById('auth-submit-btn').textContent = authMode === 'login' ? 'Sign In' : 'Sign Up';
+    const toggleBtn = document.querySelector('button[onclick="toggleAuthMode()"]');
+    document.getElementById('auth-toggle-text').textContent = authMode === 'login' ? "Don't have an account?" : 'Already have an account?';
+    if(toggleBtn) toggleBtn.textContent = authMode === 'login' ? 'Sign Up' : 'Sign In';
+    document.getElementById('auth-error').style.display = 'none';
+}
+
+async function handleAuth(e) {
+    e.preventDefault();
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    const errorEl = document.getElementById('auth-error');
+    
+    try {
+        const endpoint = authMode === 'login' ? '/api/auth/login' : '/api/auth/signup';
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            errorEl.style.display = 'none';
+            if (authMode === 'signup') {
+                document.getElementById('auth-card-main').style.display = 'none';
+                document.getElementById('aws-connect-card').style.display = 'block';
+            } else {
+                checkAuthStatus();
+            }
+        } else {
+            errorEl.textContent = data.message;
+            errorEl.style.display = 'block';
+        }
+    } catch (e) {
+        errorEl.textContent = 'Network error. Please try again.';
+        errorEl.style.display = 'block';
+    }
+}
+
+async function logout() {
+    try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+        window.location.reload();
+    } catch (e) {
+        console.error("Logout failed", e);
+    }
+}
+
+async function handleConnectAWS(e) {
+    e.preventDefault();
+    const accessKey = document.getElementById('setup-aws-key').value;
+    const secretKey = document.getElementById('setup-aws-secret').value;
+    const region = document.getElementById('setup-aws-region').value;
+    const errorEl = document.getElementById('aws-setup-error');
+    
+    try {
+        const res = await fetch('/api/auth/connect', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ access_key: accessKey, secret_key: secretKey, region })
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            errorEl.style.display = 'none';
+            showToast('success', 'AWS Connected', 'Scanning will begin automatically.');
+            checkAuthStatus();
+        } else {
+            errorEl.textContent = data.message;
+            errorEl.style.display = 'block';
+        }
+    } catch (e) {
+        errorEl.textContent = 'Network error. Please try again.';
+        errorEl.style.display = 'block';
+    }
+}
+
+function skipAWSSetup() {
+    checkAuthStatus();
+}
+
+
 
 
 function initTypingEffect() {
@@ -261,26 +384,26 @@ async function loadAWSCost() {
         if (data.status === "ok") {
             periodBadge.innerText = `${data.period.start} to ${data.period.end}`;
             
-            let html = `<div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:16px; border-bottom:1px solid rgba(168,85,247,0.15); padding-bottom:12px;">
-                <span style="font-size:13px; color:#a1afc2; font-weight:600; text-transform:uppercase;">Total Month-to-Date</span>
-                <span style="font-size:28px; font-weight:800; color:#f8fafc;">$${data.total.toFixed(2)}</span>
+            let html = `<div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:16px; border-bottom:1px solid rgba(246,247,235,0.08); padding-bottom:12px;">
+                <span style="font-size:13px; color:rgba(246,247,235,0.55); font-weight:600; text-transform:uppercase;">Total Month-to-Date</span>
+                <span style="font-size:28px; font-weight:800; color:#F6F7EB;">$${data.total.toFixed(2)}</span>
             </div>`;
             
             html += `<table style="width:100%; border-collapse:collapse;">`;
             data.services.forEach(s => {
                 const pct = ((s.cost / data.total) * 100).toFixed(1);
-                html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-                    <td style="padding:8px 0; font-size:13px; color:#e2e8f0; font-weight:500;">${s.service}</td>
+                html += `<tr style="border-bottom:1px solid rgba(246,247,235,0.04);">
+                    <td style="padding:8px 0; font-size:13px; color:rgba(246,247,235,0.8); font-weight:500;">${s.service}</td>
                     <td style="padding:8px 0; text-align:right;">
-                        <span style="font-size:11px; color:#a1afc2; margin-right:8px;">${pct}%</span>
-                        <span style="font-size:13px; font-weight:700; color:#fb2c50;">$${s.cost.toFixed(2)}</span>
+                        <span style="font-size:11px; color:rgba(246,247,235,0.55); margin-right:8px;">${pct}%</span>
+                        <span style="font-size:13px; font-weight:700; color:#E94F37;">$${s.cost.toFixed(2)}</span>
                     </td>
                 </tr>`;
             });
             html += `</table>`;
             body.innerHTML = html;
         } else {
-            body.innerHTML = `<div class="empty-state" style="padding:28px;"><span class="empty-icon" style="color:#fb2c50;">⚠️</span><p>Failed to load cost data</p><span style="font-size:12px;">${data.message}</span></div>`;
+            body.innerHTML = `<div class="empty-state" style="padding:28px;"><span class="empty-icon" style="color:#E94F37;">⚠️</span><p>Failed to load cost data</p><span style="font-size:12px;">${data.message}</span></div>`;
             periodBadge.innerText = "Error";
         }
     } catch (e) {
@@ -412,18 +535,18 @@ function renderTrendChart(data) {
     const values = data.map(d => d.total_waste_usd);
     const counts = data.map(d => d.resources_found);
     const gradient = ctx.getContext("2d").createLinearGradient(0, 0, 0, 250);
-    gradient.addColorStop(0, "rgba(99,102,241,0.25)");
-    gradient.addColorStop(1, "rgba(99,102,241,0)");
+    gradient.addColorStop(0, "rgba(233,79,55,0.25)");
+    gradient.addColorStop(1, "rgba(233,79,55,0)");
     trendChart = new Chart(ctx, {
         type: "line",
         data: { labels, datasets: [
-            { label: "Monthly Waste ($)", data: values, borderColor: "#6366f1", backgroundColor: gradient, borderWidth: 2.5, fill: true, tension: 0.4, pointBackgroundColor: "#6366f1", pointBorderColor: "#0d1117", pointBorderWidth: 2, pointRadius: 4, pointHoverRadius: 7 },
-            { label: "Resources", data: counts, borderColor: "#06b6d4", borderWidth: 2, borderDash: [5, 5], fill: false, tension: 0.4, pointRadius: 3, yAxisID: "y1" }
+            { label: "Monthly Waste ($)", data: values, borderColor: "#E94F37", backgroundColor: gradient, borderWidth: 2.5, fill: true, tension: 0.4, pointBackgroundColor: "#E94F37", pointBorderColor: "#1a1c1e", pointBorderWidth: 2, pointRadius: 4, pointHoverRadius: 7 },
+            { label: "Resources", data: counts, borderColor: "#22c55e", borderWidth: 2, borderDash: [5, 5], fill: false, tension: 0.4, pointRadius: 3, yAxisID: "y1" }
         ]},
         options: { responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false },
             plugins: { legend: { position: "top", labels: { usePointStyle: true, padding: 16, font: { size: 11, weight: "600" } } },
-                tooltip: { backgroundColor: "rgba(6,8,15,0.95)", borderColor: "rgba(99,102,241,0.3)", borderWidth: 1, padding: 12, cornerRadius: 8 } },
-            scales: { x: { grid: { color: "rgba(99,102,241,0.05)" } }, y: { grid: { color: "rgba(99,102,241,0.05)" }, ticks: { callback: v => "$" + v } }, y1: { position: "right", grid: { display: false } } }
+                tooltip: { backgroundColor: "rgba(26,28,30,0.95)", borderColor: "rgba(233,79,55,0.3)", borderWidth: 1, padding: 12, cornerRadius: 8 } },
+            scales: { x: { grid: { color: "rgba(246,247,235,0.04)" } }, y: { grid: { color: "rgba(246,247,235,0.04)" }, ticks: { callback: v => "$" + v } }, y1: { position: "right", grid: { display: false } } }
         }
     });
 }
@@ -440,7 +563,7 @@ function renderBreakdownChart(breakdown) {
         data: { labels, datasets: [{ data: values, backgroundColor: labels.map(l => COLORS[l]?.bg || "rgba(148,163,184,0.15)"), borderColor: labels.map(l => COLORS[l]?.border || "#94a3b8"), borderWidth: 2, hoverOffset: 8 }] },
         options: { responsive: true, maintainAspectRatio: false, cutout: "65%",
             plugins: { legend: { position: "bottom", labels: { usePointStyle: true, padding: 14, font: { size: 11, weight: "600" } } },
-                tooltip: { backgroundColor: "rgba(6,8,15,0.95)", borderColor: "rgba(99,102,241,0.3)", borderWidth: 1, padding: 12, cornerRadius: 8,
+                tooltip: { backgroundColor: "rgba(26,28,30,0.95)", borderColor: "rgba(233,79,55,0.3)", borderWidth: 1, padding: 12, cornerRadius: 8,
                     callbacks: { label: c => { const t = c.dataset.data.reduce((a, b) => a + b, 0); return " " + c.label + ": $" + c.parsed.toFixed(2) + " (" + ((c.parsed / t) * 100).toFixed(1) + "%)"; } } } }
         }
     });
@@ -455,10 +578,10 @@ function renderServiceBarChart(breakdown) {
     if (!labels.length) return;
     serviceBarChart = new Chart(ctx, {
         type: "bar",
-        data: { labels, datasets: [{ label: "Waste ($)", data: values, backgroundColor: labels.map(l => COLORS[l]?.bg || "rgba(148,163,184,0.15)"), borderColor: labels.map(l => COLORS[l]?.border || "#94a3b8"), borderWidth: 2, borderRadius: 6, barPercentage: 0.6 }] },
+        data: { labels, datasets: [{ label: "Waste ($)", data: values, backgroundColor: labels.map(l => COLORS[l]?.bg || "#94A3B8"), borderColor: labels.map(l => COLORS[l]?.border || "#94A3B8"), borderWidth: 2, borderRadius: 6, barPercentage: 0.6 }] },
         options: { responsive: true, maintainAspectRatio: false, indexAxis: "y",
-            plugins: { legend: { display: false }, tooltip: { backgroundColor: "rgba(6,8,15,0.95)", padding: 12, cornerRadius: 8, callbacks: { label: c => " $" + c.parsed.x.toFixed(2) } } },
-            scales: { x: { grid: { color: "rgba(99,102,241,0.05)" }, ticks: { callback: v => "$" + v } }, y: { grid: { display: false } } }
+            plugins: { legend: { display: false }, tooltip: { backgroundColor: "rgba(26,28,30,0.95)", padding: 12, cornerRadius: 8, callbacks: { label: c => " $" + c.parsed.x.toFixed(2) } } },
+            scales: { x: { grid: { color: "rgba(246,247,235,0.04)" }, ticks: { callback: v => "$" + v } }, y: { grid: { display: false } } }
         }
     });
 }

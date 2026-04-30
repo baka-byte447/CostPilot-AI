@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: costpilot-ai
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --chdir . dashboard.app:app
+    envVars:
+      - key: ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DB_PATH
+        value: /data/optimizer.db
+    disk:
+      name: costpilot-data
+      mountPath: /data
+      sizeGB: 1
+    healthCheckPath: /healthz

@@ -71,6 +71,7 @@ Examples:
     parser.add_argument("--execute", action="store_true", help="Execute cleanup actions (asks for confirmation)")
     parser.add_argument("--ai", action="store_true", help="Get AI-powered recommendations via Ollama")
     parser.add_argument("--dashboard", action="store_true", help="Launch the web dashboard")
+    parser.add_argument("--port", type=int, default=5000, help="Port to run the dashboard on (default: 5000)")
     parser.add_argument("--optimize", action="store_true", help="Run autonomous optimization pipeline")
     parser.add_argument("--auto-apply", action="store_true", help="Apply optimization actions automatically")
     parser.add_argument("--optimize-lookback-days", type=int, help="Lookback window for metrics")
@@ -89,7 +90,7 @@ Examples:
 
     if args.dashboard:
         from dashboard.app import start_dashboard
-        start_dashboard()
+        start_dashboard(port=args.port)
         return
 
     if args.optimize:

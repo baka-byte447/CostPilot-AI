@@ -2,8 +2,10 @@ import sys
 import os
 import json
 import logging
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, session
 from flask_cors import CORS
+from werkzeug.security import generate_password_hash, check_password_hash
+
 
 # Add parent directory to path so we can import project modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -50,11 +52,100 @@ app = Flask(__name__,
             template_folder=os.path.join(os.path.dirname(__file__), "templates"),
             static_folder=os.path.join(os.path.dirname(__file__), "static"))
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable static file caching during dev
+app.secret_key = os.getenv("SECRET_KEY", "costpilot-secret-key-12345")
 CORS(app)
+
+# --- Authentication Routes ---
+@app.route("/api/auth/status")
+def auth_status():
+    if "user_id" in session:
+        return jsonify({"authenticated": True, "email": session.get("email")})
+    return jsonify({"authenticated": False})
+
+@app.route("/api/auth/signup", methods=["POST"])
+def auth_signup():
+    data = request.json
+    email = data.get("email")
+    password = data.get("password")
+    
+    if not email or not password:
+        return jsonify({"status": "error", "message": "Email and password required"}), 400
+        
+    password_hash = generate_password_hash(password)
+    from db.database import create_user
+    user_id = create_user(email, password_hash)
+    
+    if user_id:
+        session["user_id"] = user_id
+        session["email"] = email
+        return jsonify({"status": "ok", "message": "Signup successful", "user_id": user_id})
+    else:
+        return jsonify({"status": "error", "message": "Email already registered"}), 409
+
+@app.route("/api/auth/connect", methods=["POST"])
+def auth_connect():
+    """Save AWS credentials for the currently logged in user."""
+    if "user_id" not in session:
+        return jsonify({"status": "error", "message": "Not authenticated"}), 401
+        
+    data = request.json
+    access_key = data.get("access_key")
+    secret_key = data.get("secret_key")
+    region = data.get("region", "ap-south-1")
+    
+    if not access_key or not secret_key:
+        return jsonify({"status": "error", "message": "AWS credentials required"}), 400
+        
+    from db.database import update_user_credentials
+    success = update_user_credentials(session["user_id"], access_key, secret_key, region, session["email"])
+    
+    if success:
+        return jsonify({"status": "ok", "message": "AWS credentials saved"})
+    else:
+        return jsonify({"status": "error", "message": "Failed to save credentials"}), 500
+
+@app.route("/api/auth/login", methods=["POST"])
+def auth_login():
+    data = request.json
+    email = data.get("email")
+    password = data.get("password")
+    
+    from db.database import get_user_by_email
+    user = get_user_by_email(email)
+    if user and check_password_hash(user["password_hash"], password):
+        session["user_id"] = user["id"]
+        session["email"] = user["email"]
+        return jsonify({"status": "ok", "message": "Logged in successfully"})
+    return jsonify({"status": "error", "message": "Invalid email or password"}), 401
+
+@app.route("/api/auth/logout", methods=["POST"])
+def auth_logout():
+    session.clear()
+    return jsonify({"status": "ok", "message": "Logged out"})
+
+# Protect API routes
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if "user_id" not in session:
+            return jsonify({"status": "error", "message": "Unauthorized"}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.before_request
+def check_auth():
+    if request.path.startswith("/api/") and not request.path.startswith("/api/auth/"):
+        if request.method != "OPTIONS" and "user_id" not in session:
+            return jsonify({"status": "error", "message": "Unauthorized"}), 401
 
 @app.route("/")
 def index():
     return render_template("index.html")
+
+@app.route("/healthz")
+def healthz():
+    """Health check endpoint for Render/Kubernetes."""
+    return jsonify({"status": "ok", "timestamp": datetime.now().isoformat()})
 
 
 @app.route("/api/latest-scan")
@@ -743,6 +834,24 @@ def _read_env():
                 if line and not line.startswith("#") and "=" in line:
                     key, _, val = line.partition("=")
                     env[key.strip()] = val.strip()
+                    
+    # Overlay user-specific AWS credentials if logged in
+    from flask import session
+    if session and "user_id" in session:
+        try:
+            from db.database import get_user_by_id
+            user = get_user_by_id(session["user_id"])
+            if user:
+                if user.get("aws_access_key_id"):
+                    env["AWS_ACCESS_KEY_ID"] = user["aws_access_key_id"]
+                if user.get("aws_secret_access_key"):
+                    env["AWS_SECRET_ACCESS_KEY"] = user["aws_secret_access_key"]
+                if user.get("aws_region"):
+                    env["AWS_DEFAULT_REGION"] = user["aws_region"]
+                    env["AWS_REGIONS"] = user["aws_region"]
+        except Exception as e:
+            logger.warning(f"Could not load user credentials: {e}")
+            
     return env
 
 
@@ -1900,9 +2009,20 @@ def api_save_settings():
                         
                 env[env_key] = val_str
 
-
-
         _write_env(env)
+
+        if "user_id" in session:
+            try:
+                from db.database import update_user_credentials
+                update_user_credentials(
+                    session["user_id"],
+                    env.get("AWS_ACCESS_KEY_ID", ""),
+                    env.get("AWS_SECRET_ACCESS_KEY", ""),
+                    env.get("AWS_DEFAULT_REGION", "ap-south-1"),
+                    env.get("ALERT_TO", "")
+                )
+            except Exception as e:
+                logger.warning(f"Could not save credentials to user DB: {e}")
 
         from dotenv import load_dotenv
         load_dotenv(ENV_PATH, override=True)
@@ -2029,10 +2149,23 @@ def api_debug_rl():
         }), 500
 
 
-def start_dashboard(host="127.0.0.1", port=5000):
+def start_dashboard(host=None, port=None):
+    """
+    Starts the dashboard. 
+    On Render/Production, host should be 0.0.0.0 and port from ENV.
+    """
+    if host is None:
+        host = os.environ.get("HOST", "127.0.0.1")
+    if port is None:
+        port = int(os.environ.get("PORT", 5000))
+    
+    is_prod = os.environ.get("ENV") == "production"
+    
     setup_db()
-    print(f"\n🚀 Dashboard running at http://{host}:{port}\n")
-    app.run(host=host, port=port, debug=True)
+    print(f"\n🚀 Dashboard starting at http://{host}:{port} (Prod: {is_prod})\n")
+    
+    # In production, we usually run via Gunicorn, but this is kept for local testing
+    app.run(host=host, port=port, debug=not is_prod)
 
 
 if __name__ == "__main__":

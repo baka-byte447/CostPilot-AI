@@ -23,6 +23,18 @@ def setup_db():
             cursor = conn.cursor()
 
             cursor.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    email TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    aws_access_key_id TEXT,
+                    aws_secret_access_key TEXT,
+                    aws_region TEXT,
+                    alert_email TEXT
+                )
+            """)
+
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS scans (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     timestamp TEXT NOT NULL,
@@ -142,6 +154,62 @@ def setup_db():
     except sqlite3.Error as e:
         logger.error(f"Database setup failed: {e}")
         raise
+
+# --- User Management ---
+def create_user(email, password_hash):
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO users (email, password_hash) VALUES (?, ?)",
+                (email, password_hash)
+            )
+            conn.commit()
+            return cursor.lastrowid
+    except sqlite3.IntegrityError:
+        return None # Email already exists
+    except sqlite3.Error as e:
+        logger.error(f"Failed to create user: {e}")
+        return None
+
+def get_user_by_email(email):
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+    except sqlite3.Error as e:
+        logger.error(f"Failed to fetch user by email: {e}")
+        return None
+
+def get_user_by_id(user_id):
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+    except sqlite3.Error as e:
+        logger.error(f"Failed to fetch user by id: {e}")
+        return None
+
+def update_user_credentials(user_id, aws_access, aws_secret, aws_region, alert_email):
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """UPDATE users 
+                   SET aws_access_key_id = ?, aws_secret_access_key = ?, aws_region = ?, alert_email = ?
+                   WHERE id = ?""",
+                (aws_access, aws_secret, aws_region, alert_email, user_id)
+            )
+            conn.commit()
+            return True
+    except sqlite3.Error as e:
+        logger.error(f"Failed to update user credentials: {e}")
+        return False
+
 
 
 def save_alert(alert_type, message, total_waste, threshold, email_sent=False):

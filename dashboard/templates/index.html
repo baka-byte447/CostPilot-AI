@@ -23,15 +23,74 @@
         </defs>
     </svg>
 
+    <!-- Auth Overlay -->
+    <div id="auth-overlay" class="auth-overlay" style="display: flex; position: fixed; inset: 0; background: #1a1c1e; z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(10px);">
+        <div id="auth-card-main" class="card auth-card" style="width: 100%; max-width: 400px; padding: 32px; background: rgba(57,62,65,0.65); backdrop-filter: blur(20px) saturate(180%); border: 1px solid rgba(246,247,235,0.08); border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);">
+            <div style="text-align: center; margin-bottom: 24px;">
+                <h2 style="font-size: 24px; font-weight: 700; color: #F6F7EB; margin-bottom: 8px;" id="auth-title">Welcome to CostPilot</h2>
+                <p style="color: rgba(246,247,235,0.55); font-size: 14px;" id="auth-subtitle">Sign in to manage your AWS costs</p>
+            </div>
+            
+            <form id="auth-form" onsubmit="handleAuth(event)">
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label style="display: block; color: rgba(246,247,235,0.8); font-size: 13px; font-weight: 500; margin-bottom: 6px;">Email Address</label>
+                    <input type="email" id="auth-email" required placeholder="you@company.com" style="width: 100%; padding: 10px 12px; background: rgba(26,28,30,0.6); border: 1px solid rgba(246,247,235,0.08); border-radius: 8px; color: #F6F7EB; font-size: 14px;">
+                </div>
+                <div class="form-group" style="margin-bottom: 24px;">
+                    <label style="display: block; color: rgba(246,247,235,0.8); font-size: 13px; font-weight: 500; margin-bottom: 6px;">Password</label>
+                    <input type="password" id="auth-password" required placeholder="••••••••" style="width: 100%; padding: 10px 12px; background: rgba(26,28,30,0.6); border: 1px solid rgba(246,247,235,0.08); border-radius: 8px; color: #F6F7EB; font-size: 14px;">
+                </div>
+                
+                <div id="auth-error" style="color: #ef4444; font-size: 13px; margin-bottom: 16px; text-align: center; display: none;"></div>
+                
+                <button type="submit" class="btn btn-primary" id="auth-submit-btn" style="width: 100%; justify-content: center; font-size: 15px; padding: 12px;">Sign In</button>
+            </form>
+            
+            <div style="text-align: center; margin-top: 20px; font-size: 13px; color: rgba(246,247,235,0.55);">
+                <span id="auth-toggle-text">Don't have an account?</span>
+                <button type="button" onclick="toggleAuthMode()" style="background: none; border: none; color: #E94F37; cursor: pointer; font-weight: 500; margin-left: 4px;">Sign Up</button>
+            </div>
+        </div>
+
+        <!-- AWS Connection Form (Step 2 of Signup) -->
+        <div id="aws-connect-card" class="card auth-card" style="width: 100%; max-width: 450px; padding: 32px; background: rgba(57,62,65,0.65); backdrop-filter: blur(20px) saturate(180%); border: 1px solid rgba(246,247,235,0.08); border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); display: none;">
+            <div style="text-align: center; margin-bottom: 24px;">
+                <h2 style="font-size: 24px; font-weight: 700; color: #F6F7EB; margin-bottom: 8px;">Connect AWS</h2>
+                <p style="color: rgba(246,247,235,0.55); font-size: 14px;">One last step! Provide your AWS credentials to start optimizing.</p>
+            </div>
+            
+            <form id="aws-connect-form" onsubmit="handleConnectAWS(event)">
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label style="display: block; color: rgba(246,247,235,0.8); font-size: 13px; font-weight: 500; margin-bottom: 6px;">AWS Access Key ID</label>
+                    <input type="text" id="setup-aws-key" required placeholder="AKIA..." style="width: 100%; padding: 10px 12px; background: rgba(26,28,30,0.6); border: 1px solid rgba(246,247,235,0.08); border-radius: 8px; color: #F6F7EB; font-size: 14px;">
+                </div>
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label style="display: block; color: rgba(246,247,235,0.8); font-size: 13px; font-weight: 500; margin-bottom: 6px;">AWS Secret Access Key</label>
+                    <input type="password" id="setup-aws-secret" required placeholder="••••••••" style="width: 100%; padding: 10px 12px; background: rgba(26,28,30,0.6); border: 1px solid rgba(246,247,235,0.08); border-radius: 8px; color: #F6F7EB; font-size: 14px;">
+                </div>
+                <div class="form-group" style="margin-bottom: 24px;">
+                    <label style="display: block; color: rgba(246,247,235,0.8); font-size: 13px; font-weight: 500; margin-bottom: 6px;">Default Region</label>
+                    <input type="text" id="setup-aws-region" required value="ap-south-1" style="width: 100%; padding: 10px 12px; background: rgba(26,28,30,0.6); border: 1px solid rgba(246,247,235,0.08); border-radius: 8px; color: #F6F7EB; font-size: 14px;">
+                </div>
+                
+                <div id="aws-setup-error" style="color: #ef4444; font-size: 13px; margin-bottom: 16px; text-align: center; display: none;"></div>
+                
+                <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; font-size: 15px; padding: 12px;">Start Analyzing</button>
+                <button type="button" onclick="skipAWSSetup()" style="width: 100%; background: none; border: none; color: rgba(246,247,235,0.4); cursor: pointer; font-size: 13px; margin-top: 12px;">I'll do this later</button>
+            </form>
+    </div>
+</div>
+
+
     <!-- Sidebar Navigation -->
     <nav class="sidebar" id="sidebar">
         <div class="sidebar-logo">
-            <div class="sidebar-logo-icon" style="background: rgba(255, 153, 0, 0.1); border-color: rgba(255, 153, 0, 0.2);">
+            <div class="sidebar-logo-icon" style="background: rgba(233, 79, 55, 0.12); border-color: rgba(233, 79, 55, 0.25);">
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
                     <defs>
                         <linearGradient id="awsGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" style="stop-color:#FF9900"/>
-                            <stop offset="100%" style="stop-color:#FF7300"/>
+                            <stop offset="0%" style="stop-color:#E94F37"/>
+                            <stop offset="100%" style="stop-color:#f0735f"/>
                         </linearGradient>
                     </defs>
                     <!-- Abstract Cloud -->
@@ -44,7 +103,7 @@
                     <path d="M17.5 17.5 L 20 18.5 L 19 21" stroke="url(#awsGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
                 </svg>
             </div>
-            <span class="sidebar-logo-text" style="background: linear-gradient(135deg, #ffffff, #cbd5e1); -webkit-background-clip: text; color: transparent;">Cost<span style="color: #FF9900;">Optimizer</span></span>
+            <span class="sidebar-logo-text" style="color: #F6F7EB;">Cost<span style="color: #E94F37;">Pilot</span></span>
         </div>        <div class="sidebar-nav">
             <button class="nav-item active" data-tab="home" id="nav-home" onclick="switchTab('home')">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
@@ -91,6 +150,10 @@
 
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                 <span>Settings</span>
+            </button>
+            <button class="nav-item" style="color: #ef4444;" onclick="logout()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                <span>Sign Out</span>
             </button>
         </div>
 
