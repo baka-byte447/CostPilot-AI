@@ -1,0 +1,40 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment files (secrets must NOT be baked into image)
+.env
+.env.*
+
+# SQLite database (mounted as volume in dev; not needed in image)
+database/
+*.db
+
+# ML model weights (loaded at runtime or regenerated)
+app/rl/models/*.npy
+app/rl/models/*.npz
+app/rl/models/*.pkl
+
+# Test / dev files
+test_*.py
+tests/
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/

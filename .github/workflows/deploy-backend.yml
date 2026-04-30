@@ -1,0 +1,58 @@
+######################################################################
+# GitHub Actions: Build & Deploy backend to Azure Container Apps
+#
+# Required GitHub Secrets (Settings → Secrets → Actions):
+#   AZURE_CREDENTIALS        - Service principal JSON (az ad sp create-for-rbac)
+#   REGISTRY_LOGIN_SERVER    - e.g. costpilotacr.azurecr.io
+#   REGISTRY_USERNAME        - ACR username
+#   REGISTRY_PASSWORD        - ACR password
+#   AZURE_RESOURCE_GROUP     - e.g. costpilot-rg
+#   CONTAINER_APP_NAME       - e.g. costpilot-backend
+#   CONTAINER_APP_ENV        - e.g. costpilot-env
+######################################################################
+
+name: Deploy Backend to Azure Container Apps
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-backend.yml'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Log in to Azure Container Registry
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.REGISTRY_LOGIN_SERVER }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Build and push Docker image
+        working-directory: backend
+        run: |
+          IMAGE_TAG=${{ secrets.REGISTRY_LOGIN_SERVER }}/costpilot-backend:${{ github.sha }}
+          IMAGE_LATEST=${{ secrets.REGISTRY_LOGIN_SERVER }}/costpilot-backend:latest
+          docker build -t $IMAGE_TAG -t $IMAGE_LATEST .
+          docker push $IMAGE_TAG
+          docker push $IMAGE_LATEST
+
+      - name: Deploy to Azure Container Apps
+        uses: azure/container-apps-deploy-action@v1
+        with:
+          resourceGroup: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          containerAppName: ${{ secrets.CONTAINER_APP_NAME }}
+          imageToDeploy: ${{ secrets.REGISTRY_LOGIN_SERVER }}/costpilot-backend:${{ github.sha }}

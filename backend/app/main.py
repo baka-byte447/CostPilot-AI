@@ -1,6 +1,7 @@
+import os
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import Response, JSONResponse
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 from threading import Thread
 import logging
@@ -31,9 +32,14 @@ logging.getLogger("azure.identity").setLevel(logging.WARNING)
 
 app = FastAPI(title="CostPilot API", version="1.0.0")
 
+# ALLOWED_ORIGINS env var = comma-separated list of allowed origins.
+# Example: "https://costpilot.vercel.app,https://www.costpilot.ai"
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000")
+_allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -69,3 +75,9 @@ async def count_requests(request: Request, call_next):
 @app.get("/app_metrics")
 def metrics():
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
+@app.get("/health")
+def health():
+    """Liveness probe endpoint for Azure Container Apps."""
+    return JSONResponse({"status": "ok"})

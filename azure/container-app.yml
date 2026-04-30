@@ -1,0 +1,74 @@
+######################################################################
+# Azure Container Apps deployment spec for CostPilot backend
+#
+# Deploy with:
+#   az containerapp create \
+#     --resource-group <YOUR_RG> \
+#     --yaml azure/container-app.yml
+#
+# Or use: az containerapp update --name costpilot-backend --yaml azure/container-app.yml
+######################################################################
+
+location: eastus
+name: costpilot-backend
+type: Microsoft.App/containerApps
+properties:
+  managedEnvironmentId: /subscriptions/SUBSCRIPTION_ID/resourceGroups/RESOURCE_GROUP/providers/Microsoft.App/managedEnvironments/ENVIRONMENT_NAME
+  configuration:
+    ingress:
+      external: true
+      targetPort: 8000
+      transport: http
+      allowInsecure: false
+    registries:
+      - server: REGISTRY_NAME.azurecr.io
+        username: REGISTRY_NAME
+        passwordSecretRef: acr-password
+    secrets:
+      - name: acr-password
+        value: ACR_PASSWORD_PLACEHOLDER          # replaced by az cli / GitHub Actions
+
+  template:
+    containers:
+      - name: costpilot-backend
+        image: REGISTRY_NAME.azurecr.io/costpilot-backend:latest
+        resources:
+          cpu: 1.0
+          memory: 2Gi
+        env:
+          # ── Required secrets (set via --secret in az CLI or GitHub secrets) ──
+          - name: JWT_SECRET
+            secretRef: jwt-secret
+          - name: ENCRYPTION_KEY
+            secretRef: encryption-key
+          # ── Database ─────────────────────────────────────────────────────────
+          # When using Azure Database for PostgreSQL:
+          # Format: postgresql://USER:PASSWORD@HOST:5432/DBNAME?sslmode=require
+          - name: DATABASE_URL
+            secretRef: database-url
+          # ── CORS ─────────────────────────────────────────────────────────────
+          # Replace with your actual Vercel frontend URL after first deploy
+          - name: ALLOWED_ORIGINS
+            value: "https://YOUR-PROJECT.vercel.app"
+          # ── Optional: Groq LLM for AI explanations ────────────────────────
+          - name: GROQ_API_KEY
+            secretRef: groq-api-key
+          # ── App behaviour ────────────────────────────────────────────────────
+          - name: PROMETHEUS_URL
+            value: "http://localhost:9090"
+        probes:
+          - type: liveness
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 30
+          - type: readiness
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+    scale:
+      minReplicas: 1
+      maxReplicas: 3
