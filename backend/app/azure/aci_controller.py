@@ -1,6 +1,6 @@
 import logging
 import os
-from .azure_client import azure
+from .azure_client import AzureClientManager
 from azure.mgmt.containerinstance.models import OperatingSystemTypes
 
 logger=logging.getLogger(__name__)
@@ -8,15 +8,16 @@ logger=logging.getLogger(__name__)
 
 class ACIController:
 
-    def __init__(self):
-        self.resource_group=os.getenv("AZURE_RESOURCE_GROUP","nimbusopt-rg")
-        self.location = os.getenv("AZURE_LOCATION","centralindia")
+    def __init__(self, creds: dict = None):
+        self.azure = AzureClientManager(creds)
+        self.resource_group=self.azure.resource_group
+        self.location = creds.get("location", "centralindia") if creds else os.getenv("AZURE_LOCATION","centralindia")
         self.base_name=os.getenv("AZURE_ACI_GROUP", "nimbusopt-containers")
 
     MAX_ACI_GROUPS =2
 
     def _get_all_groups(self)->list:
-        container=azure.container()
+        container=self.azure.container()
         all_groups=list(
             container.container_groups.list_by_resource_group(self.resource_group)
         )
@@ -50,7 +51,7 @@ class ACIController:
                 "total_groups": len(existing),
             }
 
-            container_client=azure.container()
+            container_client=self.azure.container()
             existing=self._get_all_groups()
             created=[]
 
@@ -94,7 +95,7 @@ class ACIController:
 
     def scale_down(self,decrement:int=1)->dict:
 
-        container_client = azure.container()
+        container_client = self.azure.container()
 
         groups=sorted(self._get_all_groups(),key=lambda g: g.name,reverse=True)
 

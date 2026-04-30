@@ -33,7 +33,7 @@ def _make_azure_credential(creds: Optional[dict] = None) -> ClientSecretCredenti
 def get_vmss_ctrl(creds: Optional[dict] = None) -> VMSSController:
     global _vmss_ctrl
     if creds:
-        return VMSSController()
+        return VMSSController(creds)
     if _vmss_ctrl is None:
         _vmss_ctrl = VMSSController()
     return _vmss_ctrl
@@ -42,7 +42,7 @@ def get_vmss_ctrl(creds: Optional[dict] = None) -> VMSSController:
 def get_aci_ctrl(creds: Optional[dict] = None) -> ACIController:
     global _aci_ctrl
     if creds:
-        return ACIController()
+        return ACIController(creds)
     if _aci_ctrl is None:
         _aci_ctrl = ACIController()
     return _aci_ctrl
@@ -51,7 +51,7 @@ def get_aci_ctrl(creds: Optional[dict] = None) -> ACIController:
 def get_azure_cost(creds: Optional[dict] = None) -> AzureCostController:
     global _azure_cost
     if creds:
-        return AzureCostController()
+        return AzureCostController(creds)
     if _azure_cost is None:
         _azure_cost = AzureCostController()
     return _azure_cost

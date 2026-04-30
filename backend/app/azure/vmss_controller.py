@@ -1,18 +1,19 @@
 import logging
 import os
-from .azure_client import azure
+from .azure_client import AzureClientManager
 
 logger=logging.getLogger(__name__)
 
 
 class VMSSController:
 
-    def __init__(self):
-        self.resource_group = os.getenv("AZURE_RESOURCE_GROUP","nimbusopt-rg")
+    def __init__(self, creds: dict = None):
+        self.azure = AzureClientManager(creds)
+        self.resource_group = self.azure.resource_group
 
     def get_vmss_info(self,vmss_name:str)->dict:
 
-        compute = azure.compute()
+        compute = self.azure.compute()
 
         vmss=compute.virtual_machine_scale_sets.get(
             self.resource_group,vmss_name
@@ -44,7 +45,7 @@ class VMSSController:
         if capacity == info["capacity"]:
             return {"action":"no_change","capacity":capacity}
 
-        compute=azure.compute()
+        compute=self.azure.compute()
 
         vmss = compute.virtual_machine_scale_sets.get(
             self.resource_group,
@@ -88,8 +89,8 @@ class VMSSController:
 
         from datetime import datetime,timezone,timedelta
 
-        compute=azure.compute()
-        monitor = azure.monitor()
+        compute=self.azure.compute()
+        monitor = self.azure.monitor()
 
         instances=list(
             compute.virtual_machine_scale_set_vms.list(
@@ -147,7 +148,7 @@ class VMSSController:
 
     def change_vm_size(self,vmss_name:str,new_size:str)->dict:
 
-        compute = azure.compute()
+        compute = self.azure.compute()
 
         vmss=compute.virtual_machine_scale_sets.get(
             self.resource_group, vmss_name
@@ -173,7 +174,7 @@ class VMSSController:
 
     def list_vmss(self)->list:
 
-        compute=azure.compute()
+        compute=self.azure.compute()
 
         return[
             {

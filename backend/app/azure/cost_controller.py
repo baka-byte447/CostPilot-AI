@@ -1,15 +1,16 @@
 import logging
 import os
 from datetime import datetime,timezone,timedelta
-from .azure_client import azure
+from .azure_client import AzureClientManager
 
 logger=logging.getLogger(__name__)
 
 
 class AzureCostController:
 
-    def __init__(self):
-        self.subscription_id = os.getenv("AZURE_SUBSCRIPTION_ID")
+    def __init__(self, creds: dict = None):
+        self.azure = AzureClientManager(creds)
+        self.subscription_id = self.azure.subscription_id
         self.scope=f"/subscriptions/{self.subscription_id}"
 
     def get_current_month_cost(self)->dict:
@@ -22,7 +23,7 @@ class AzureCostController:
         now=datetime.now(timezone.utc)
         start = now.replace(day=1,hour=0,minute=0,second=0,microsecond=0)
 
-        cost_client=azure.cost()
+        cost_client=self.azure.cost()
 
         query=QueryDefinition(
             type="ActualCost",
@@ -64,7 +65,7 @@ class AzureCostController:
         now = datetime.now(timezone.utc)
         start=now - timedelta(days=days)
 
-        cost_client = azure.cost()
+        cost_client = self.azure.cost()
 
         query = QueryDefinition(
             type="ActualCost",

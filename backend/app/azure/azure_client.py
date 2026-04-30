@@ -10,15 +10,25 @@ from azure.mgmt.resource import ResourceManagementClient
 load_dotenv()
 class AzureClientManager:
 
-    def __init__(self):
-        self.subscription_id  = os.getenv("AZURE_SUBSCRIPTION_ID")
-        self.resource_group   = os.getenv("AZURE_RESOURCE_GROUP", "nimbusopt-rg")
-        self.location         = os.getenv("AZURE_LOCATION", "eastus")
-        self.credential = ClientSecretCredential(
-            tenant_id     = os.getenv("AZURE_TENANT_ID"),
-            client_id     = os.getenv("AZURE_CLIENT_ID"),
-            client_secret = os.getenv("AZURE_CLIENT_SECRET")
-        )
+    def __init__(self, creds: dict = None):
+        if creds:
+            self.subscription_id  = creds.get("subscription_id")
+            self.resource_group   = creds.get("resource_group", "nimbusopt-rg")
+            self.location         = creds.get("location", "eastus")
+            self.credential = ClientSecretCredential(
+                tenant_id     = creds.get("tenant_id", ""),
+                client_id     = creds.get("client_id", ""),
+                client_secret = creds.get("client_secret", "")
+            )
+        else:
+            self.subscription_id  = os.getenv("AZURE_SUBSCRIPTION_ID")
+            self.resource_group   = os.getenv("AZURE_RESOURCE_GROUP", "nimbusopt-rg")
+            self.location         = os.getenv("AZURE_LOCATION", "eastus")
+            self.credential = ClientSecretCredential(
+                tenant_id     = os.getenv("AZURE_TENANT_ID", ""),
+                client_id     = os.getenv("AZURE_CLIENT_ID", ""),
+                client_secret = os.getenv("AZURE_CLIENT_SECRET", "")
+            )
 
     def compute(self) -> ComputeManagementClient:
         return ComputeManagementClient(self.credential, self.subscription_id)
@@ -34,5 +44,3 @@ class AzureClientManager:
 
     def resource(self) -> ResourceManagementClient:
         return ResourceManagementClient(self.credential, self.subscription_id)
-azure = AzureClientManager()
-
