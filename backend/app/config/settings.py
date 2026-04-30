@@ -21,6 +21,35 @@ class Settings(BaseSettings):
 	cors_origins: str = Field("*", description="Comma-separated list of allowed CORS origins")
 	prometheus_export_port: int = Field(8001, description="Port for the internal Prometheus exporter")
 	kube_config_path: Optional[str] = Field(None, description="Optional path to a kubeconfig file")
+	aws_control_account_id: Optional[str] = Field(
+		None,
+		description="AWS account ID that hosts the CostPilot control plane",
+	)
+	aws_default_region: str = Field("us-east-1", description="Default region for AWS client sessions")
+	aws_require_connection: bool = Field(
+		False,
+		description="Require a stored AWS connection for AWS API calls",
+	)
+	aws_assume_role_duration_seconds: int = Field(
+		3600,
+		description="STS assume role session duration in seconds",
+	)
+	auth_required: bool = Field(
+		False,
+		description="Require JWT authentication for protected endpoints",
+	)
+	jwt_secret: str = Field(
+		"change-me",
+		description="Secret key for signing JWTs",
+	)
+	jwt_algorithm: str = Field(
+		"HS256",
+		description="JWT signing algorithm",
+	)
+	jwt_access_token_minutes: int = Field(
+		720,
+		description="JWT access token lifetime in minutes",
+	)
 
 	if USING_PYDANTIC_V2:
 		model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")

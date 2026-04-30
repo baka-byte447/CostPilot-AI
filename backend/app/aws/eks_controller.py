@@ -1,11 +1,14 @@
 import logging
-from .aws_client import aws
+
+from .aws_client import get_default_aws_manager
 
 logger = logging.getLogger(__name__)
 class EKSController:
+    def __init__(self, aws_manager=None):
+        self.aws = aws_manager or get_default_aws_manager()
 
     def get_nodegroup_info(self, cluster: str, nodegroup: str) -> dict:
-        resp = aws.eks().describe_nodegroup(
+        resp = self.aws.eks().describe_nodegroup(
             clusterName=cluster,
             nodegroupName=nodegroup
         )
@@ -28,7 +31,7 @@ class EKSController:
         if desired == info["desired"]:
             return {"action": "no_change", "desired": desired}
 
-        aws.eks().update_nodegroup_config(
+        self.aws.eks().update_nodegroup_config(
             clusterName=cluster,
             nodegroupName=nodegroup,
             scalingConfig={"desiredSize": desired}
@@ -52,7 +55,7 @@ class EKSController:
         return self.set_desired_size(cluster, nodegroup, info["desired"] - decrement)
 
     def list_nodegroups(self, cluster: str) -> list:
-        resp = aws.eks().list_nodegroups(clusterName=cluster)
+        resp = self.aws.eks().list_nodegroups(clusterName=cluster)
         nodegroups = []
         for ng_name in resp.get("nodegroups", []):
             try:
@@ -62,7 +65,7 @@ class EKSController:
         return nodegroups
 
     def list_clusters(self) -> list:
-        resp = aws.eks().list_clusters()
+        resp = self.aws.eks().list_clusters()
         return resp.get("clusters", [])
     
 

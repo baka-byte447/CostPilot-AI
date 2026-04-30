@@ -1,12 +1,15 @@
 import logging
 
-from .aws_client import aws
+from .aws_client import get_default_aws_manager
 
 logger = logging.getLogger(__name__)
 
 class EC2Controller:
+    def __init__(self, aws_manager=None):
+        self.aws = aws_manager or get_default_aws_manager()
+
     def get_asg_info(self, asg_name: str) -> dict:
-        resp = aws.autoscaling().describe_auto_scaling_groups(
+        resp = self.aws.autoscaling().describe_auto_scaling_groups(
             AutoScalingGroupNames=[asg_name]
         )
         groups = resp.get("AutoScalingGroups", [])
@@ -32,7 +35,7 @@ class EC2Controller:
             logger.info(f"ASG {asg_name}: already at desired={desired}, no change")
             return {"action": "no_change", "desired": desired}
 
-        aws.autoscaling().set_desired_capacity(
+        self.aws.autoscaling().set_desired_capacity(
             AutoScalingGroupName=asg_name,
             DesiredCapacity=desired,
             HonorCooldown=True  
@@ -57,10 +60,10 @@ class EC2Controller:
 
     def terminate_idle_instances(self, asg_name: str, cpu_threshold: float = 5.0) -> dict:
  
-        cw = aws.cloudwatch()
+        cw = self.aws.cloudwatch()
         asg_info = self.get_asg_info(asg_name)
 
-        resp = aws.autoscaling().describe_auto_scaling_groups(
+        resp = self.aws.autoscaling().describe_auto_scaling_groups(
             AutoScalingGroupNames=[asg_name]
         )
         instances = resp["AutoScalingGroups"][0]["Instances"]
@@ -85,7 +88,7 @@ class EC2Controller:
 
         terminated = []
         for instance_id in idle:
-            aws.autoscaling().terminate_instance_in_auto_scaling_group(
+            self.aws.autoscaling().terminate_instance_in_auto_scaling_group(
                 InstanceId=instance_id,
                 ShouldDecrementDesiredCapacity=True
             )
@@ -101,7 +104,7 @@ class EC2Controller:
         }
 
     def change_instance_type(self, instance_id: str, new_type: str) -> dict:
-        ec2 = aws.ec2()
+        ec2 = self.aws.ec2()
 
         logger.info(f"Stopping {instance_id} to change type to {new_type}")
         ec2.stop_instances(InstanceIds=[instance_id])
@@ -123,7 +126,7 @@ class EC2Controller:
         }
 
     def list_asgs(self) -> list:
-        resp = aws.autoscaling().describe_auto_scaling_groups()
+        resp = self.aws.autoscaling().describe_auto_scaling_groups()
         return [
             {
                 "name": g["AutoScalingGroupName"],

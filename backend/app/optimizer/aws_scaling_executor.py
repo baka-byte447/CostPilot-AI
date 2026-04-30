@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 class AWSScalingExecutor:
 
-    def execute(self, decision: dict) -> dict:
+    def execute(self, decision: dict, aws_manager=None) -> dict:
         action        = decision.get("action")
         resource_type = decision.get("resource_type")
         target        = decision.get("target", {})
@@ -17,19 +17,19 @@ class AWSScalingExecutor:
 
         try:
             if resource_type == "ec2":
-                return self._handle_ec2(action, target, params)
+                return self._handle_ec2(action, target, params, aws_manager)
             elif resource_type == "ecs":
-                return self._handle_ecs(action, target, params)
+                return self._handle_ecs(action, target, params, aws_manager)
             elif resource_type == "eks":
-                return self._handle_eks(action, target, params)
+                return self._handle_eks(action, target, params, aws_manager)
             else:
                 return {"success": False, "error": f"Unknown resource_type: {resource_type}"}
         except Exception as e:
             logger.error(f"AWS execution failed: {e}", exc_info=True)
             return {"success": False, "error": str(e)}
 
-    def _handle_ec2(self, action: str, target: dict, params: dict) -> dict:
-        ec2 = get_ec2_ctrl()
+    def _handle_ec2(self, action: str, target: dict, params: dict, aws_manager=None) -> dict:
+        ec2 = get_ec2_ctrl(aws_manager)
         asg_name = target.get("asg_name")
         if action == "scale_up":
             result = ec2.scale_up(asg_name, params.get("increment", 1))
@@ -45,8 +45,8 @@ class AWSScalingExecutor:
             return {"success": False, "error": f"Unknown EC2 action: {action}"}
         return {"success": True, "resource_type": "ec2", **result}
 
-    def _handle_ecs(self, action: str, target: dict, params: dict) -> dict:
-        ecs = get_ecs_ctrl()
+    def _handle_ecs(self, action: str, target: dict, params: dict, aws_manager=None) -> dict:
+        ecs = get_ecs_ctrl(aws_manager)
         cluster = target["cluster"]
         service = target["service"]
         if action == "scale_up":
@@ -59,8 +59,8 @@ class AWSScalingExecutor:
             return {"success": False, "error": f"Unknown ECS action: {action}"}
         return {"success": True, "resource_type": "ecs", **result}
 
-    def _handle_eks(self, action: str, target: dict, params: dict) -> dict:
-        eks = get_eks_ctrl()
+    def _handle_eks(self, action: str, target: dict, params: dict, aws_manager=None) -> dict:
+        eks = get_eks_ctrl(aws_manager)
         cluster   = target["cluster"]
         nodegroup = target["nodegroup"]
         if action == "scale_up":

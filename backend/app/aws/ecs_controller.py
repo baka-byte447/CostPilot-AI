@@ -1,11 +1,14 @@
 import logging
-from .aws_client import aws
+
+from .aws_client import get_default_aws_manager
 
 logger = logging.getLogger(__name__)
 class ECSController:
+    def __init__(self, aws_manager=None):
+        self.aws = aws_manager or get_default_aws_manager()
 
     def get_service_info(self, cluster: str, service: str) -> dict:
-        resp = aws.ecs().describe_services(
+        resp = self.aws.ecs().describe_services(
             cluster=cluster,
             services=[service]
         )
@@ -29,7 +32,7 @@ class ECSController:
         if desired == info["desired"]:
             return {"action": "no_change", "desired": desired}
 
-        aws.ecs().update_service(
+        self.aws.ecs().update_service(
             cluster=cluster,
             service=service,
             desiredCount=desired
@@ -53,11 +56,11 @@ class ECSController:
         return self.set_desired_count(cluster, service, info["desired"] - decrement)
 
     def list_services(self, cluster: str) -> list:
-        resp = aws.ecs().list_services(cluster=cluster)
+        resp = self.aws.ecs().list_services(cluster=cluster)
         arns = resp.get("serviceArns", [])
         if not arns:
             return []
-        details = aws.ecs().describe_services(cluster=cluster, services=arns)
+        details = self.aws.ecs().describe_services(cluster=cluster, services=arns)
         return [
             {
                 "service": s["serviceName"],
@@ -69,7 +72,7 @@ class ECSController:
         ]
 
     def list_clusters(self) -> list:
-        resp = aws.ecs().list_clusters()
+        resp = self.aws.ecs().list_clusters()
         return resp.get("clusterArns", [])
     
     

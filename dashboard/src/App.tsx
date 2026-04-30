@@ -10,6 +10,7 @@ import AIOptimizer from "./pages/AIOptimizer";
 import Governance from "./pages/Governance";
 import Explainability from "./pages/Explainability";
 import Resources from "./pages/Resources";
+import ConnectAWS from "./pages/ConnectAWS";
 
 function App() {
   const [page, setPage] = useState("overview");
@@ -28,6 +29,7 @@ function App() {
       case "governance": return <Governance key={refreshKey} />;
       case "explainability": return <Explainability key={refreshKey} />;
       case "resources": return <Resources key={refreshKey} />;
+      case "connectaws": return <ConnectAWS key={refreshKey} />;
       default: return <Overview key={refreshKey} onNavigate={setPage} onRunOptimizer={handleRunOptimizer} />;
     }
   };

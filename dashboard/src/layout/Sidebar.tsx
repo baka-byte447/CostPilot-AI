@@ -11,11 +11,12 @@ const navItems = [
   { id: "aioptimizer", icon: "psychology", label: "AI Optimizer", group: "AI Engine" },
   { id: "governance", icon: "gavel", label: "Governance", group: "AI Engine" },
   { id: "explainability", icon: "visibility", label: "Explainability", group: "AI Engine" },
+  { id: "connectaws", icon: "cloud_sync", label: "Connect AWS", group: "Cloud" },
   { id: "resources", icon: "cloud", label: "Resources", group: "Infrastructure" },
 ];
 
 export default function Sidebar({ setPage, currentPage, onRunOptimizer }: SidebarProps) {
-  const groups = ["Platform", "AI Engine", "Infrastructure"];
+  const groups = ["Platform", "AI Engine", "Cloud", "Infrastructure"];
 
   const handleRunOptimizer = () => {
     onRunOptimizer();

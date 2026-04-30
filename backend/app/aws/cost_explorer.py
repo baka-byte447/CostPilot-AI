@@ -1,17 +1,20 @@
 
 import logging
 from datetime import datetime, timedelta
-from .aws_client import aws
+
+from .aws_client import get_default_aws_manager
 
 logger = logging.getLogger(__name__)
 
 class CostExplorer:
+    def __init__(self, aws_manager=None):
+        self.aws = aws_manager or get_default_aws_manager()
 
     def get_daily_cost(self, days: int = 7) -> list:
         end = datetime.utcnow().date()
         start = end - timedelta(days=days)
 
-        resp = aws.cost_explorer().get_cost_and_usage(
+        resp = self.aws.cost_explorer().get_cost_and_usage(
             TimePeriod={
                 "Start": start.strftime("%Y-%m-%d"),
                 "End": end.strftime("%Y-%m-%d")
@@ -42,7 +45,7 @@ class CostExplorer:
         now = datetime.utcnow().date()
         start = now.replace(day=1)
 
-        resp = aws.cost_explorer().get_cost_and_usage(
+        resp = self.aws.cost_explorer().get_cost_and_usage(
             TimePeriod={
                 "Start": start.strftime("%Y-%m-%d"),
                 "End": now.strftime("%Y-%m-%d")
@@ -67,7 +70,7 @@ class CostExplorer:
         now = datetime.utcnow().date()
         end = now + timedelta(days=days_ahead)
 
-        resp = aws.cost_explorer().get_cost_forecast(
+        resp = self.aws.cost_explorer().get_cost_forecast(
             TimePeriod={
                 "Start": (now + timedelta(days=1)).strftime("%Y-%m-%d"),
                 "End": end.strftime("%Y-%m-%d")

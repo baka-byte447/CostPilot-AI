@@ -28,4 +28,17 @@ export const fetchAWSASGs       = () => api.get("/api/aws/ec2/asgs")
 export const fetchAWSClusters   = () => api.get("/api/aws/ecs/clusters")
 export const fetchAWSActions    = () => api.get("/api/aws/actions/log")
 
+// ── Auth ──
+export const authRegister       = (email: string, password: string) => api.post("/api/auth/register", { email, password })
+export const authLogin          = (email: string, password: string) => api.post("/api/auth/login", { email, password })
+
+// ── AWS Connection Flow ──
+export const awsSetup           = (role_name?: string, allow_write?: boolean) =>
+  api.post("/api/aws/connection/setup", { role_name: role_name || "CostPilotAccessRole", allow_write: allow_write || false })
+export const awsSaveConnection  = (data: { account_id: string; role_arn: string; external_id: string; regions: string[]; label?: string }) =>
+  api.post("/api/aws/connection", data)
+export const awsGetConnection   = () => api.get("/api/aws/connection")
+export const awsDeleteConnection = () => api.delete("/api/aws/connection")
+export const awsVerifyConnection = () => api.get("/api/aws/connection/verify")
+
 export default api

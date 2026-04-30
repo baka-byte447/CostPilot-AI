@@ -56,3 +56,19 @@ CREATE INDEX idx_metrics_timestamp ON metrics(timestamp);
 CREATE INDEX idx_costs_timestamp ON costs(timestamp);
 CREATE INDEX idx_forecasts_time ON forecasts(forecast_time);
 CREATE INDEX idx_audit_timestamp ON audit_log(timestamp);
+
+-- AWS connections table: cross-account role access per user
+CREATE TABLE IF NOT EXISTS aws_connections (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(128) NOT NULL,
+    account_id VARCHAR(32) NOT NULL,
+    role_arn VARCHAR(256) NOT NULL,
+    external_id VARCHAR(128) NOT NULL,
+    default_region VARCHAR(32) NOT NULL DEFAULT 'us-east-1',
+    label VARCHAR(128),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_aws_connections_user_id ON aws_connections(user_id);

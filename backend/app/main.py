@@ -21,8 +21,10 @@ from app.api.optimize import router as optimize_router
 from app.api.aws import router as aws_router
 from app.api.azure import router as azure_router
 from app.api.rl import router as rl_router
+from app.api.auth import router as auth_router
 from app.config.database import Base, SessionLocal, engine
 from app.config.settings import settings
+from app.models.aws_connection import AwsConnection
 from app.models.metrics_model import Metrics
 from app.telemetry import MetricsCollector, get_collector, initialize_collector
 from app.workers.metrics_collector import get_scheduler_state, start_scheduler
@@ -222,6 +224,7 @@ app.include_router(optimize_router, prefix="/api")
 app.include_router(aws_router, prefix="/api")
 app.include_router(azure_router, prefix="/api")
 app.include_router(rl_router, prefix="/api")
+app.include_router(auth_router, prefix="/api")
 
 
 if __name__ == "__main__":
