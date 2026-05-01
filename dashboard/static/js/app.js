@@ -9,6 +9,7 @@ let trendChart = null;
 let breakdownChart = null;
 let serviceBarChart = null;
 let highestSeverity = "low";
+let settingsLoadedOnce = false;
 
 
 Chart.defaults.color = "rgba(246,247,235,0.55)";
@@ -283,7 +284,7 @@ function switchTab(tabId) {
     }
 
     if (tabId === "dashboard" || tabId === "analytics") loadDashboard();
-    if (tabId === "settings") loadSettings();
+    if (tabId === "settings") loadSettings(false);
     if (tabId === "alerts") loadAlerts();
     if (tabId === "active") loadActiveServices();
     if (tabId === "inventory" && typeof window.loadInventory === "function") window.loadInventory();
@@ -727,21 +728,26 @@ function togglePassword(inputId, btn) {
 }
 
 // === SETTINGS ===
-async function loadSettings() {
+async function loadSettings(force = false) {
+    if (settingsLoadedOnce && !force) return;
     try {
         const res = await fetch("/api/settings");
         const s = await res.json();
+
+        const populate = (id, val) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            // Only populate if empty OR if it's not a password field being masked
+            if (!el.value || (val && !val.includes('****'))) {
+                el.value = val || "";
+            }
+        };
         
         // AWS
-        const awsKey = document.getElementById("set-aws-key");
-        const awsSecret = document.getElementById("set-aws-secret");
-        const awsRegion = document.getElementById("set-aws-region");
-        if (awsKey) awsKey.value = s.aws.access_key || "";
-        if (awsSecret) awsSecret.value = s.aws.secret_key || "";
-        if (awsRegion) awsRegion.value = s.aws.region || "ap-south-1";
-        const awsRegions = document.getElementById("set-aws-regions");
-        if (awsRegions) awsRegions.value = s.aws.regions || "ap-south-1";
-
+        populate("set-aws-key", s.aws.access_key);
+        populate("set-aws-secret", s.aws.secret_key);
+        populate("set-aws-region", s.aws.region);
+        populate("set-aws-regions", s.aws.regions);
 
         const awsStatus = document.getElementById("aws-status");
         if (awsStatus) {
@@ -750,35 +756,14 @@ async function loadSettings() {
         }
 
         // Email
-        const sh = document.getElementById("set-smtp-host");
-        const sp = document.getElementById("set-smtp-port");
-        const su = document.getElementById("set-smtp-user");
-        const spw = document.getElementById("set-smtp-password");
-        const sf = document.getElementById("set-alert-from");
-        const st = document.getElementById("set-alert-to");
-        if (sh) sh.value = s.email.smtp_host || "";
-        if (sp) sp.value = s.email.smtp_port || "";
-        if (su) su.value = s.email.smtp_user || "";
-        if (spw) spw.value = s.email.smtp_password || "";
-        if (sf) sf.value = s.email.alert_from || "";
-        if (st) st.value = s.email.alert_to || "";
-
-        const emailStatus = document.getElementById("email-status");
-        if (emailStatus) {
-            emailStatus.className = "settings-status " + (s.email.configured ? "configured" : "not-configured");
-            emailStatus.textContent = s.email.configured ? "Configured" : "Not configured";
-        }
+        populate("set-alert-to", s.email.alert_to);
 
         // Budget
-        const budgetInput = document.getElementById("set-budget");
-        if (budgetInput) budgetInput.value = s.budget.threshold;
+        populate("set-budget", s.budget.threshold);
 
         // App
-        const snapAge = document.getElementById("set-snap-age");
-        const cpuThresh = document.getElementById("set-cpu-thresh");
-        if (snapAge) snapAge.value = s.app.snapshot_age_days || "";
-        if (cpuThresh) cpuThresh.value = s.app.ec2_cpu_threshold || "";
-
+        populate("set-snap-age", s.app.snapshot_age_days);
+        populate("set-cpu-thresh", s.app.ec2_cpu_threshold);
 
         // Check schedule status
         const schedRes = await fetch("/api/schedule/status");
@@ -792,8 +777,12 @@ async function loadSettings() {
                 schedBtn.style.borderColor = "rgba(34,197,94,0.3)";
             } else {
                 schedBtn.innerHTML = "Enable Auto-Scan";
+                schedBtn.style.background = "";
+                schedBtn.style.color = "";
+                schedBtn.style.borderColor = "";
             }
         }
+        settingsLoadedOnce = true;
     } catch (e) { console.error("Settings load error:", e); }
 }
 
@@ -838,12 +827,6 @@ async function saveSettings() {
         aws_secret_key: document.getElementById("set-aws-secret")?.value || "",
         aws_region: document.getElementById("set-aws-region")?.value || "",
         aws_regions: document.getElementById("set-aws-regions")?.value || "",
-        smtp_host: document.getElementById("set-smtp-host")?.value || "",
-
-        smtp_port: document.getElementById("set-smtp-port")?.value || "",
-        smtp_user: document.getElementById("set-smtp-user")?.value || "",
-        smtp_password: document.getElementById("set-smtp-password")?.value || "",
-        alert_from: document.getElementById("set-alert-from")?.value || "",
         alert_to: document.getElementById("set-alert-to")?.value || "",
         budget_threshold: document.getElementById("set-budget")?.value || "",
         snapshot_age_days: document.getElementById("set-snap-age")?.value || "",
@@ -860,7 +843,7 @@ async function saveSettings() {
         const result = await res.json();
         if (result.status === "ok") {
             if (statusEl) { statusEl.className = "settings-save-status success"; statusEl.textContent = "\u2705 Settings saved successfully!"; }
-            setTimeout(() => loadSettings(), 500);
+            settingsLoadedOnce = true;
         } else {
             if (statusEl) { statusEl.className = "settings-save-status error"; statusEl.textContent = "\u274c " + result.message; }
         }

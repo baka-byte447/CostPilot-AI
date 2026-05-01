@@ -49,6 +49,31 @@ logger = logging.getLogger(__name__)
 
 ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
 
+
+# Capture global sender at startup to ensure it stays fixed even when user settings are applied to environment
+GLOBAL_FIXED_SENDER = (os.getenv("ALERT_FROM") or os.getenv("SMTP_USER") or "").strip()
+
+def _fixed_alert_from():
+    """Return the globally fixed sender email used for all users."""
+    return GLOBAL_FIXED_SENDER
+
+
+def _enforce_fixed_sender_for_all_users():
+    """Backfill all user records to the fixed sender email."""
+    fixed_sender = _fixed_alert_from()
+    if not fixed_sender:
+        return
+    try:
+        from db.database import get_connection
+        with get_connection() as conn:
+            conn.execute(
+                "UPDATE users SET alert_from = ? WHERE alert_from IS NULL OR alert_from <> ?",
+                (fixed_sender, fixed_sender),
+            )
+            conn.commit()
+    except Exception as e:
+        logger.warning(f"Could not enforce fixed sender for users: {e}")
+
 app = Flask(__name__,
             template_folder=os.path.join(os.path.dirname(__file__), "templates"),
             static_folder=os.path.join(os.path.dirname(__file__), "static"))
@@ -58,6 +83,7 @@ CORS(app)
 
 # Initialize database tables on startup (works for both local and Gunicorn/Render)
 setup_db()
+_enforce_fixed_sender_for_all_users()
 
 # --- Authentication Routes ---
 @app.route("/api/auth/status")
@@ -87,7 +113,10 @@ def auth_signup():
         try:
             from db.database import get_connection
             with get_connection() as conn:
-                conn.execute("UPDATE users SET alert_email = ? WHERE id = ?", (email, user_id))
+                conn.execute(
+                    "UPDATE users SET alert_email = ?, alert_from = ? WHERE id = ?",
+                    (email, _fixed_alert_from(), user_id),
+                )
                 conn.commit()
         except Exception as e:
             logger.warning(f"Could not seed alert_email for new user {user_id}: {e}")
@@ -180,8 +209,10 @@ def auth_login():
                 os.environ["SMTP_USER"] = str(user["smtp_user"])
             if user.get("smtp_password"):
                 os.environ["SMTP_PASSWORD"] = str(user["smtp_password"])
-            if user.get("alert_from"):
-                os.environ["ALERT_FROM"] = str(user["alert_from"])
+
+            fixed_sender = _fixed_alert_from()
+            if fixed_sender:
+                os.environ["ALERT_FROM"] = fixed_sender
 
             alert_to = user.get("alert_email") or user.get("email")
             if alert_to:
@@ -234,7 +265,7 @@ def healthz():
 
 @app.route("/api/latest-scan")
 def api_latest_scan():
-    scan = get_latest_scan()
+    scan = get_latest_scan(user_id=session.get("user_id"))
     if scan:
         # Filter out deleted/terminated resources
         scan["resources"] = [r for r in scan.get("resources", []) if r.get("status") not in ("deleted", "terminated")]
@@ -246,14 +277,14 @@ def api_latest_scan():
 
 @app.route("/api/scans")
 def api_all_scans():
-    return jsonify(get_all_scans())
+    return jsonify(get_all_scans(user_id=session.get("user_id")))
 
 
 @app.route("/api/history/clear", methods=["POST"])
 def api_clear_history():
     from db.database import clear_all_scans
     try:
-        clear_all_scans()
+        clear_all_scans(user_id=session.get("user_id"))
         return jsonify({"status": "ok", "message": "All scan history cleared"})
     except Exception as e:
         logger.error(f"Failed to clear history: {e}")
@@ -262,7 +293,7 @@ def api_clear_history():
 
 @app.route("/api/scan/<int:scan_id>/resources")
 def api_scan_resources(scan_id):
-    resources = get_scan_resources(scan_id)
+    resources = get_scan_resources(scan_id, user_id=session.get("user_id"))
     for r in resources:
         r["severity"] = get_severity(r["waste_usd"])
     return jsonify(resources)
@@ -288,13 +319,13 @@ def api_ai_provider():
 
 def api_cost_trend():
     limit = request.args.get("limit", 30, type=int)
-    return jsonify(get_cost_trend(limit))
+    return jsonify(get_cost_trend(limit, user_id=session.get("user_id")))
 
 
 @app.route("/api/summary")
 def api_summary():
-    scan = get_latest_scan()
-    scans = get_all_scans()
+    scan = get_latest_scan(user_id=session.get("user_id"))
+    scans = get_all_scans(user_id=session.get("user_id"))
     if not scan:
         return jsonify({"total_waste":0,"resources_found":0,"annual_projection":0,"trend_change":0,"last_scan":None,"total_scans":0,"breakdown":{}})
 
@@ -321,7 +352,7 @@ def api_summary():
 
 @app.route("/api/budget")
 def api_budget():
-    scan = get_latest_scan()
+    scan = get_latest_scan(user_id=session.get("user_id"))
     total_waste = scan["total_waste_usd"] if scan else 0
     exceeded = total_waste >= config.BUDGET_THRESHOLD
     pct = (total_waste / config.BUDGET_THRESHOLD * 100) if config.BUDGET_THRESHOLD > 0 else 0
@@ -337,19 +368,19 @@ def api_budget():
 @app.route("/api/alerts")
 def api_alerts():
     limit = request.args.get("limit", 50, type=int)
-    return jsonify(get_alerts(limit))
+    return jsonify(get_alerts(limit, user_id=session.get("user_id")))
 
 
 @app.route("/api/optimizations")
 def api_optimizations():
     limit = request.args.get("limit", 50, type=int)
-    return jsonify(get_recent_optimizations(limit))
+    return jsonify(get_recent_optimizations(limit, user_id=session.get("user_id")))
 
 
 @app.route("/api/forecasts")
 def api_forecasts():
     limit = request.args.get("limit", 50, type=int)
-    return jsonify(get_recent_forecasts(limit))
+    return jsonify(get_recent_forecasts(limit, user_id=session.get("user_id")))
 
 
 @app.route("/api/run-optimizer", methods=["POST"])
@@ -357,6 +388,8 @@ def api_run_optimizer():
     """Trigger the autonomous optimizer pipeline."""
     try:
         from optimizer.pipeline import run_autonomous_optimizer
+        previous_user = os.environ.get("CURRENT_USER_ID")
+        os.environ["CURRENT_USER_ID"] = str(session.get("user_id"))
         
         auto_apply = request.args.get("auto_apply", "false").lower() == "true"
         summary = run_autonomous_optimizer(auto_apply=auto_apply, include_findings=True)
@@ -371,6 +404,11 @@ def api_run_optimizer():
     except Exception as e:
         logger.error(f"Optimizer error: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
+    finally:
+        if previous_user is None:
+            os.environ.pop("CURRENT_USER_ID", None)
+        else:
+            os.environ["CURRENT_USER_ID"] = previous_user
 
 
 @app.route("/api/optimizations/<int:action_id>")
@@ -380,7 +418,7 @@ def api_optimization_detail(action_id):
         from db.database import get_connection
         with get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM optimizations WHERE id = ?", (action_id,))
+            cursor.execute("SELECT * FROM optimizations WHERE id = ? AND user_id = ?", (action_id, session.get("user_id")))
             row = cursor.fetchone()
             if row:
                 action = dict(row)
@@ -405,7 +443,7 @@ def api_apply_optimization(action_id):
         
         with get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM optimizations WHERE id = ?", (action_id,))
+            cursor.execute("SELECT * FROM optimizations WHERE id = ? AND user_id = ?", (action_id, session.get("user_id")))
             row = cursor.fetchone()
             if not row:
                 return jsonify({"status": "error", "message": "Action not found"}), 404
@@ -445,6 +483,12 @@ def api_skip_optimization(action_id):
         data = request.get_json() or {}
         reason = data.get("reason", "Skipped by user via UI")
 
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM optimizations WHERE id = ? AND user_id = ?", (action_id, session.get("user_id")))
+            if not cursor.fetchone():
+                return jsonify({"status": "error", "message": "Action not found"}), 404
+
         # Mark as skipped and create audit log
         update_optimization_status(action_id, "skipped", apply_result=reason)
         save_audit_log(action_id, "skipped", actor=request.remote_addr or 'web-ui', message=reason)
@@ -464,7 +508,7 @@ def api_explain_optimization(action_id):
 
         with get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM optimizations WHERE id = ?", (action_id,))
+            cursor.execute("SELECT * FROM optimizations WHERE id = ? AND user_id = ?", (action_id, session.get("user_id")))
             row = cursor.fetchone()
             if not row:
                 return jsonify({"status": "error", "message": "Action not found"}), 404
@@ -493,10 +537,16 @@ def api_explain_optimization(action_id):
 def api_rollback_optimization(action_id):
     """Mark an action for rollback (logs audit). Full automated rollback is not performed automatically; this records intent."""
     try:
-        from db.database import update_optimization_status, save_audit_log
+        from db.database import get_connection, update_optimization_status, save_audit_log
 
         data = request.get_json() or {}
         reason = data.get("reason", "Rollback requested by user")
+
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM optimizations WHERE id = ? AND user_id = ?", (action_id, session.get("user_id")))
+            if not cursor.fetchone():
+                return jsonify({"status": "error", "message": "Action not found"}), 404
 
         update_optimization_status(action_id, "rolled_back", apply_result=reason)
         save_audit_log(action_id, "rollback_requested", actor=request.remote_addr or 'web-ui', message=reason)
@@ -510,7 +560,12 @@ def api_rollback_optimization(action_id):
 @app.route("/api/optimizations/<int:action_id>/audit")
 def api_optimization_audit(action_id):
     try:
-        from db.database import get_audit_logs
+        from db.database import get_connection, get_audit_logs
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM optimizations WHERE id = ? AND user_id = ?", (action_id, session.get("user_id")))
+            if not cursor.fetchone():
+                return jsonify({"status": "error", "message": "Action not found"}), 404
         logs = get_audit_logs(action_id)
         return jsonify({"status": "ok", "logs": logs})
     except Exception as e:
@@ -522,7 +577,7 @@ def api_optimization_audit(action_id):
 def api_clear_alerts():
     from db.database import clear_all_alerts
     try:
-        clear_all_alerts()
+        clear_all_alerts(user_id=session.get("user_id"))
         return jsonify({"status": "ok", "message": "All alerts cleared"})
     except Exception as e:
         logger.error(f"Failed to clear alerts: {e}")
@@ -548,7 +603,7 @@ def api_inventory():
     seen_ids = set()
     
     # 1. Add wasted resources from latest scan (skip deleted)
-    scan = get_latest_scan()
+    scan = get_latest_scan(user_id=session.get("user_id"))
     if scan:
         for r in scan.get("resources", []):
             status = r.get("status", "wasted")
@@ -621,7 +676,7 @@ def api_perform_action():
         # Update DB status based on action taken
         new_status = "deleted" if action == "delete" else ("stopped" if action == "stop" else "running" if action == "start" else "detected")
         try:
-            update_resource_status(resource_id, new_status)
+            update_resource_status(resource_id, new_status, user_id=session.get("user_id"))
         except Exception as e:
             logger.warning(f"Could not update DB status for {resource_id}: {e}")
         
@@ -634,12 +689,27 @@ def api_perform_action():
         return jsonify({"status": "error", "message": message}), 500
 
 
-def _run_scan_thread():
+def _run_scan_thread(user_id=None):
     global SCAN_STATUS
     import subprocess
     try:
         env = os.environ.copy()
         env["PYTHONIOENCODING"] = "utf-8"
+        
+        # Load current user settings (DB + .env fallback)
+        user_env = _read_env(user_id)
+        for k, v in user_env.items():
+            if v:
+                env[k] = str(v)
+        
+        if user_id is not None:
+            env["SCAN_USER_ID"] = str(user_id)
+            # Ensure ALERT_TO is set to the user's email if not already set
+            if not env.get("ALERT_TO"):
+                from db.database import get_user_by_id
+                user = get_user_by_id(user_id)
+                if user and user.get("email"):
+                    env["ALERT_TO"] = user["email"]
         
         result = subprocess.run([sys.executable, "main.py", "--scan"],
                                 capture_output=True, text=True, check=True,
@@ -663,7 +733,8 @@ def api_sync_status():
     from data_source import get_live_status
     from db.database import update_resource_status
 
-    scan = get_latest_scan()
+    current_user_id = session.get("user_id")
+    scan = get_latest_scan(user_id=current_user_id)
     if not scan:
         return jsonify({"status": "ok", "synced": 0, "message": "No scans to sync"})
 
@@ -694,7 +765,7 @@ def api_sync_status():
         rid = r["id"]
         if rid not in live_ids:
             try:
-                update_resource_status(rid, "deleted")
+                update_resource_status(rid, "deleted", user_id=current_user_id)
                 synced += 1
             except Exception as e:
                 logger.warning(f"Sync: Failed to update {rid}: {e}")
@@ -716,7 +787,7 @@ def api_run_scan():
     SCAN_STATUS["status"] = "running"
     SCAN_STATUS["message"] = "Scan is currently running across regions"
     
-    thread = threading.Thread(target=_run_scan_thread)
+    thread = threading.Thread(target=_run_scan_thread, args=(session.get("user_id"),))
     thread.daemon = True
     thread.start()
     
@@ -738,10 +809,10 @@ def api_ai_chat():
         if not user_message:
             return jsonify({"status": "error", "message": "Message required"}), 400
             
-        latest_scan = get_latest_scan()
+        latest_scan = get_latest_scan(user_id=session.get("user_id"))
         context_report = ""
         if latest_scan:
-            resources = get_scan_resources(latest_scan["id"])
+            resources = get_scan_resources(latest_scan["id"], user_id=session.get("user_id"))
             from analyzer.cost_estimator import estimate_total
             total_waste = estimate_total(resources)
             context_report = f"Total monthly waste: ${total_waste}\nResources detected:\n"
@@ -810,7 +881,7 @@ def api_aws_cost():
 @app.route("/api/ai-advice")
 def api_ai_advice():
     """Fetch AI advice based on the latest scan report."""
-    scan = get_latest_scan()
+    scan = get_latest_scan(user_id=session.get("user_id"))
     if not scan:
         return jsonify({"status": "error", "advice": "No scans available for AI analysis."})
     
@@ -904,50 +975,59 @@ def api_schedule_status():
 
 # --- Settings helpers ---
 def _mask(val):
-    if not val or len(val) <= 8 or val.startswith("your_"):
+    if not val or val.startswith("your_"):
         return ""
+    if len(val) <= 4:
+        return "****"
+    if len(val) <= 8:
+        return val[:2] + "****" + val[-2:]
     return val[:4] + "*" * (len(val) - 8) + val[-4:]
 
 
-def _read_env():
+def _read_env(user_id=None):
+    """Read .env file and overlay user-specific settings from the database."""
     env = {}
     if os.path.exists(ENV_PATH):
-        with open(ENV_PATH, "r") as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith("#") and "=" in line:
-                    key, _, val = line.partition("=")
-                    env[key.strip()] = val.strip()
+        try:
+            with open(ENV_PATH, "r") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        key, _, val = line.partition("=")
+                        env[key.strip()] = val.strip()
+        except Exception as e:
+            logger.warning(f"Error reading .env: {e}")
                     
-    # Overlay user-specific AWS credentials if logged in
-    from flask import session
-    if session and "user_id" in session:
+    # Overlay user-specific settings if logged in
+    if user_id is None:
+        try:
+            from flask import session
+            from flask import has_request_context
+            if has_request_context() and "user_id" in session:
+                user_id = session["user_id"]
+        except ImportError:
+            pass
+
+    if user_id is not None:
         try:
             from db.database import get_user_by_id
-            user = get_user_by_id(session["user_id"])
+            user = get_user_by_id(user_id)
             if user:
+                # AWS Overlay
                 if user.get("aws_access_key_id"):
-                    env["AWS_ACCESS_KEY_ID"] = user["aws_access_key_id"]
+                    env["AWS_ACCESS_KEY_ID"] = str(user["aws_access_key_id"])
                 if user.get("aws_secret_access_key"):
-                    env["AWS_SECRET_ACCESS_KEY"] = user["aws_secret_access_key"]
+                    env["AWS_SECRET_ACCESS_KEY"] = str(user["aws_secret_access_key"])
                 if user.get("aws_region"):
-                    env["AWS_DEFAULT_REGION"] = user["aws_region"]
+                    env["AWS_DEFAULT_REGION"] = str(user["aws_region"])
                 if user.get("aws_regions"):
-                    env["AWS_REGIONS"] = user["aws_regions"]
+                    env["AWS_REGIONS"] = str(user["aws_regions"])
                 elif user.get("aws_region"):
-                    env["AWS_REGIONS"] = user["aws_region"]
+                    env["AWS_REGIONS"] = str(user["aws_region"])
 
-                if user.get("smtp_host"):
-                    env["SMTP_HOST"] = str(user["smtp_host"])
-                if user.get("smtp_port"):
-                    env["SMTP_PORT"] = str(user["smtp_port"])
-                if user.get("smtp_user"):
-                    env["SMTP_USER"] = str(user["smtp_user"])
-                if user.get("smtp_password"):
-                    env["SMTP_PASSWORD"] = str(user["smtp_password"])
-                if user.get("alert_from"):
-                    env["ALERT_FROM"] = str(user["alert_from"])
+                # SMTP Overlay removed as per user request to always use .env sender
 
+                # Other Settings
                 if user.get("budget_threshold") is not None:
                     env["BUDGET_THRESHOLD"] = str(user["budget_threshold"])
                 if user.get("snapshot_age_days") is not None:
@@ -955,13 +1035,21 @@ def _read_env():
                 if user.get("ec2_cpu_threshold") is not None:
                     env["EC2_CPU_THRESHOLD"] = str(user["ec2_cpu_threshold"])
 
-                # Use per-user alert email if present; otherwise fall back to registered email.
+                # Alerting
+                # ALERT_TO priority: user.alert_email -> user.email -> .env
                 if user.get("alert_email"):
-                    env["ALERT_TO"] = user["alert_email"]
+                    env["ALERT_TO"] = str(user["alert_email"])
                 elif user.get("email"):
-                    env["ALERT_TO"] = user["email"]
+                    env["ALERT_TO"] = str(user["email"])
+                
+                # ALERT_FROM is always fixed to global or .env
         except Exception as e:
-            logger.warning(f"Could not load user credentials: {e}")
+            logger.warning(f"Could not overlay user credentials: {e}")
+
+    # Enforce global fixed sender
+    fixed_sender = _fixed_alert_from()
+    if fixed_sender:
+        env["ALERT_FROM"] = fixed_sender
             
     return env
 
@@ -1001,13 +1089,13 @@ def api_get_settings():
             "secret_key": _mask(env.get("AWS_SECRET_ACCESS_KEY", "")),
             "region": env.get("AWS_DEFAULT_REGION", "ap-south-1"),
             "regions": env.get("AWS_REGIONS", "ap-south-1"),
-            "configured": bool(env.get("AWS_ACCESS_KEY_ID", "")) and not env.get("AWS_ACCESS_KEY_ID", "").startswith("your_")
+            "configured": bool(env.get("AWS_ACCESS_KEY_ID")) and not str(env.get("AWS_ACCESS_KEY_ID", "")).startswith("your_")
         },
         "ai": {
             "groq_key": _mask(env.get("GROQ_API_KEY", "")),
             "gemini_key": _mask(env.get("GEMINI_API_KEY", "")),
             "ollama_model": env.get("OLLAMA_MODEL", "llama3"),
-            "configured": bool(env.get("GROQ_API_KEY", "")) or bool(env.get("GEMINI_API_KEY", ""))
+            "configured": bool(env.get("GROQ_API_KEY")) or bool(env.get("GEMINI_API_KEY"))
         },
         "email": {
             "smtp_host": env.get("SMTP_HOST", "smtp.gmail.com"),
@@ -1016,7 +1104,7 @@ def api_get_settings():
             "smtp_password": _mask(env.get("SMTP_PASSWORD", "")),
             "alert_from": env.get("ALERT_FROM", ""),
             "alert_to": env.get("ALERT_TO", ""),
-            "configured": bool(env.get("SMTP_USER", "")) and not env.get("SMTP_USER", "").startswith("your_")
+            "configured": bool(env.get("SMTP_HOST")) and bool(env.get("SMTP_USER")) and not str(env.get("SMTP_USER", "")).startswith("your_")
         },
         "budget": {
             "threshold": float(env.get("BUDGET_THRESHOLD", "50.00"))
@@ -2085,12 +2173,6 @@ def api_save_settings():
             "aws_secret_key": "AWS_SECRET_ACCESS_KEY",
             "aws_region": "AWS_DEFAULT_REGION",
             "aws_regions": "AWS_REGIONS",
-            "smtp_host": "SMTP_HOST",
-
-            "smtp_port": "SMTP_PORT",
-            "smtp_user": "SMTP_USER",
-            "smtp_password": "SMTP_PASSWORD",
-            "alert_from": "ALERT_FROM",
             "alert_to": "ALERT_TO",
             "budget_threshold": "BUDGET_THRESHOLD",
             "snapshot_age_days": "SNAPSHOT_AGE_DAYS",
@@ -2102,6 +2184,8 @@ def api_save_settings():
 
         for field, env_key in field_map.items():
             if field in data and data[field] != "":
+                if field == "alert_from":
+                    continue
                 val_str = str(data[field]).strip()
                 if "*" in val_str:
                     continue  # Skip masked passwords
@@ -2119,6 +2203,11 @@ def api_save_settings():
                         return jsonify({"status": "error", "message": f"Invalid integer for {field}"}), 400
                         
                 env[env_key] = val_str
+
+        fixed_sender = _fixed_alert_from()
+        if fixed_sender:
+            env["ALERT_FROM"] = fixed_sender
+            os.environ["ALERT_FROM"] = fixed_sender
 
         if not env.get("ALERT_TO") and session.get("email"):
             env["ALERT_TO"] = session["email"]
@@ -2143,10 +2232,6 @@ def api_save_settings():
                     conn.execute(
                         """UPDATE users SET
                            aws_regions = ?,
-                           smtp_host = ?,
-                           smtp_port = ?,
-                           smtp_user = ?,
-                           smtp_password = ?,
                            alert_from = ?,
                            budget_threshold = ?,
                            snapshot_age_days = ?,
@@ -2154,11 +2239,7 @@ def api_save_settings():
                            WHERE id = ?""",
                         (
                             env.get("AWS_REGIONS", ""),
-                            env.get("SMTP_HOST", ""),
-                            int(env.get("SMTP_PORT", "587")) if str(env.get("SMTP_PORT", "")).strip() else None,
-                            env.get("SMTP_USER", ""),
-                            env.get("SMTP_PASSWORD", ""),
-                            env.get("ALERT_FROM", ""),
+                            fixed_sender,
                             float(env.get("BUDGET_THRESHOLD", "50.00")) if str(env.get("BUDGET_THRESHOLD", "")).strip() else None,
                             int(env.get("SNAPSHOT_AGE_DAYS", "30")) if str(env.get("SNAPSHOT_AGE_DAYS", "")).strip() else None,
                             float(env.get("EC2_CPU_THRESHOLD", "5.0")) if str(env.get("EC2_CPU_THRESHOLD", "")).strip() else None,
