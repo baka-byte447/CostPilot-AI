@@ -1,161 +1,294 @@
-# AWS Smart Cost Optimizer ☁️💰
+<div align="center">
 
-A comprehensive Python-based tool (CLI + Web Dashboard) that scans your AWS account for wasted and idle resources, estimates potential savings, and uses local AI (Ollama) to recommend cost-saving actions.
+# AWS Smart Cost Optimizer (CostPilot AI) ☁️💰
 
----
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Flask](https://img.shields.io/badge/flask-web%20framework-lightgrey.svg)](https://flask.palletsprojects.com/)
+[![AWS Boto3](https://img.shields.io/badge/AWS-Boto3-orange.svg)](https://aws.amazon.com/sdk-for-python/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
-## 🌟 Features
+*A comprehensive, AI-powered Financial Operations (FinOps) platform designed to automatically identify, quantify, and remediate wasted cloud spend across your AWS infrastructure.*
 
-- **🔍 Automated Scanning:** Finds idle/wasted resources including unattached EBS volumes, stopped EC2 instances, unused Elastic IPs, old snapshots, empty S3 buckets, incomplete S3 multipart uploads, and abandoned Lambda functions.
-- **⚡ Multithreaded Engine:** Powered by a high-performance, concurrent scanning engine that scans across all active AWS regions in parallel to reduce scan times by 80%.
+[System Overview](#-system-overview) • [Working of the Project](#-working-of-the-project) • [RL Engine](#-reinforcement-learning--forecasting) • [LLM Advisor](#-local-llm-finops-advisor) • [Onboarding Guide](#-user-onboarding-guide)
 
-- **🚀 Live Infrastructure Management:** View both active and stopped services across your AWS environment, and perform live actions (Start, Stop, Reboot, Terminate) directly from the dashboard.
-- **📈 AWS Cost Explorer Integration:** Pulls live billing data from AWS Cost Explorer to show your exact monthly spend by service.
-- **💰 Cost Estimation:** Calculates exact monthly cost waste per resource based on AWS pricing.
-- **📊 Interactive Web Dashboard:** A beautiful, responsive AWS-style UI with skeleton loaders, real-time charts, filterable tables, and cost trends.
-- **⏰ Scheduled Auto-Scans:** Configure Windows Task Scheduler directly from the UI to run hourly, daily, or weekly background scans automatically.
-- **🤖 AI-Powered Advice:** Integrates with local AI models via Ollama (e.g., Phi-3, Llama 3) to analyze reports and provide actionable cost-saving advice in plain English.
-- **🚨 Budget Alerts:** Configurable threshold alerts with automated email notifications when your waste exceeds a defined budget.
-- **⚙️ Settings Management:** Update AWS credentials, budget thresholds, and email configurations directly from the UI.
-- **🗄️ Local Database:** Stores scan history and tracks your optimization trends over time using SQLite.
-- **🧠 Autonomous Optimizer:** Collects CloudWatch usage metrics, forecasts demand, and recommends or applies right-sizing actions automatically.
+</div>
 
 ---
 
-## 🛠️ Tech Stack
+## 🌐 System Overview
 
-- **Backend:** Python 3.10+, Flask, SQLite3
-- **AWS SDK:** Boto3
-- **Frontend:** HTML5, Vanilla CSS (Glassmorphism UI), Vanilla JavaScript, Chart.js
-- **AI Integration:** Ollama (Local AI)
-- **CLI Utilities:** Rich (for terminal formatting)
+**CostPilot AI** bridges the gap between rapid engineering deployment and strict financial accountability. In modern enterprise cloud environments, "Cloud Waste" occurs when developers provision instances, databases, or storage volumes for testing, and fail to decommission them. 
+
+Instead of relying on expensive SaaS platforms that export your sensitive architectural metadata to third-party servers, CostPilot AI operates entirely within your network. It connects directly to your AWS environment via the Boto3 SDK, utilizes advanced **Reinforcement Learning (RL)** to analyze metric trends, and leverages **Local Large Language Models (LLMs)** like Ollama to translate complex infrastructure json into plain-English executive summaries.
 
 ---
 
-## 📋 Prerequisites
+## 🏗️ System Architecture Flowchart
 
-1. **Python 3.10+** installed and added to your system PATH.
-2. **AWS Account & IAM Credentials** with read access (`ec2:Describe*`).
-3. **Ollama** installed locally (if you want to use the AI advisor feature).
+The system is separated into three distinct tiers: **Data Collection**, **Intelligence Processing**, and **Presentation**.
+
+```mermaid
+graph TD
+    %% Define Styles
+    classDef aws fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#232F3E;
+    classDef backend fill:#306998,stroke:#FFD43B,stroke-width:2px,color:#FFF;
+    classDef frontend fill:#333,stroke:#444,stroke-width:2px,color:#FFF;
+    classDef db fill:#003B57,stroke:#FFF,stroke-width:2px,color:#FFF;
+    classDef ai fill:#2B3137,stroke:#FFF,stroke-width:2px,color:#FFF;
+
+    subgraph AWS Environment
+        EC2[EC2 Instances]:::aws
+        EBS[EBS Volumes]:::aws
+        S3[S3 Buckets]:::aws
+        RDS[RDS Databases]:::aws
+        CW[CloudWatch Metrics]:::aws
+    end
+
+    subgraph Backend Intelligence Layer
+        Scanner[Multithreaded Boto3 Scanner]:::backend
+        Estimator[Cost Estimator Pipeline]:::backend
+        RL[Reinforcement Learning Agent]:::backend
+        Action[Deployment / Action Engine]:::backend
+    end
+
+    subgraph AI & Persistence
+        Ollama[Ollama Local LLM]:::ai
+        SQLite[(SQLite Database)]:::db
+    end
+
+    subgraph User Interface
+        Flask[Flask Web Server]:::frontend
+        Dashboard[Glassmorphism Dashboard]:::frontend
+    end
+
+    %% Flow of data
+    EC2 & EBS & S3 & RDS & CW -->|API Responses| Scanner
+    Scanner -->|Raw Metadata| Estimator
+    Estimator -->|Calculated Waste| SQLite
+    
+    CW -->|14-Day Trends| RL
+    RL -->|Q-Learning Recommendations| SQLite
+    RL -->|Auto-Apply| Action
+    Action -->|Terminate/Stop| EC2
+    
+    Estimator -->|JSON Findings| Ollama
+    Ollama -->|FinOps Summaries| SQLite
+    
+    SQLite <-->|Render Data| Flask
+    Flask <-->|Interact| Dashboard
+```
 
 ---
 
-## 🚀 Installation & Setup
+## 🌟 Core Features
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/Kanishkchahar/cloud-cost-optimizer-for-AWS.git
-   cd cloud-cost-optimizer-for-AWS
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Configure Environment Variables:**
-   Copy the example environment file and update it with your actual AWS credentials.
-   ```bash
-   cp .env.example .env
-   ```
-   Edit `.env`:
-   ```env
-   # AWS Credentials
-   AWS_ACCESS_KEY_ID=your_access_key
-   AWS_SECRET_ACCESS_KEY=your_secret_key
-   AWS_DEFAULT_REGION=ap-south-1
-   AWS_REGIONS=ap-south-1  # (Optional) Comma-separated list of target regions to scan
-
-
-   ```
-
-4. **(Optional) Setup Local AI:**
-   Install [Ollama](https://ollama.com/) and download a lightweight model:
-   ```bash
-   ollama pull phi3
-   ollama serve
-   ```
+- **🔍 Automated Multithreaded Scanning:** Scans across multiple AWS regions in parallel (cutting audit times by 80%) to detect unattached EBS volumes, stopped EC2 instances, unused Elastic IPs, orphaned snapshots, and unused Lambda functions.
+- **🧠 Reinforcement Learning Optimizer:** Analyzes historical CloudWatch metrics and uses Q-learning to recommend right-sizing.
+- **🤖 Local AI FinOps Advisor:** Integrates with local AI (Ollama) to ensure sensitive cloud data never leaves your network while still providing ChatGPT-like summaries.
+- **📊 Glassmorphism Web Dashboard:** A responsive, sleek Flask-based UI providing real-time ROI trends, filterable tables, and one-click remediation.
+- **🚨 Budget Alerting:** SMTP-integrated engine that fires automated emails when projected waste exceeds limits.
+- **🛡️ Dry-Run Safety Engine:** Test cleanup operations safely. No resources are terminated unless explicitly authorized.
 
 ---
 
-## 💻 Usage
+## ⚙️ Working of the Project
 
-### Web Dashboard
-The easiest way to interact with the optimizer is through the web dashboard.
-Run the following command or use the provided batch script:
+The execution of CostPilot AI follows a strict pipeline to ensure safety and accuracy.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Dashboard
+    participant Backend
+    participant AWS
+    participant RL_Agent
+    participant Ollama
+
+    User->>Dashboard: Clicks "Run Scan"
+    Dashboard->>Backend: Trigger /api/scan/run
+    Backend->>AWS: Fetch Configs & CloudWatch (Multithreaded)
+    AWS-->>Backend: Return Raw JSON Metadata
+    Backend->>RL_Agent: Pass Metrics (CPU, Memory, Network)
+    RL_Agent-->>Backend: Return Optimal Actions (Scale/Terminate)
+    Backend->>Ollama: Send JSON for Summary Generation
+    Ollama-->>Backend: Return Plain-English Advice
+    Backend->>Backend: Calculate USD Waste
+    Backend->>Dashboard: Render Results & Charts
+    User->>Dashboard: Clicks "Execute Clean Up"
+    Dashboard->>AWS: Terminate/Stop Resource
+```
+
+1. **Authentication:** The backend validates IAM credentials via `STS GetCallerIdentity`.
+2. **Concurrent Auditing:** A `ThreadPoolExecutor` spawns workers for each active AWS region. They pull resource states and 14-day CloudWatch averages.
+3. **Cost Estimation:** Idle resources are mapped against a pricing dictionary to calculate exact `$USD` waste per month.
+4. **Intelligence Processing:** The data is passed to the RL agent for action predictions, and to the Ollama LLM for narrative generation.
+5. **Persistence:** The final report is saved to SQLite to build historical charts on the dashboard.
+
+---
+
+## 🧠 Reinforcement Learning & Forecasting
+
+Rather than using rigid, hardcoded thresholds (e.g., "Delete if CPU < 5%"), CostPilot AI utilizes a true Reinforcement Learning (RL) algorithm.
+
+### The Mathematics of the Agent
+The system models cloud infrastructure as a **Markov Decision Process (MDP)**.
+* **State Space ($S$):** A 3D matrix combining CPU Utilization, Memory Pressure, and Network I/O buckets.
+* **Action Space ($A$):** `[Scale_Down, Maintain, Scale_Up]`.
+* **Reward Function ($R$):** The agent is highly penalized for making changes during peak load (to prevent downtime) and penalized for maintaining high-cost instances with low CPU.
+
+```mermaid
+graph LR
+    A[Current Metric State] -->|Epsilon-Greedy Choice| B(Select Action: Scale Down)
+    B --> C{Apply Reward Function}
+    C -->|Update Q-Table via Bellman| D[New Policy]
+    D --> A
+```
+The agent continuously updates its `Q-Table` locally. Over time, it learns the specific traffic patterns of *your* enterprise, determining when it is safe to shut down an environment vs when a server is just experiencing a temporary dip in traffic.
+
+---
+
+## 🤖 Local LLM FinOps Advisor
+
+Cloud metadata is incredibly dense. A JSON response for a single EC2 instance can be hundreds of lines long. CostPilot AI integrates with **Ollama** to process this data locally.
+
+**How it works:**
+1. The Boto3 scanners condense the findings into a minimal dictionary.
+2. The Backend constructs a prompt: *"Act as an executive FinOps advisor. Here is the waste data: {data}. Provide 3 actionable bullet points."*
+3. This prompt is sent to the local Ollama daemon (running `phi3` or `llama3`).
+4. Because Ollama runs on your local CPU/GPU, **your proprietary AWS architecture is never sent to OpenAI or any third-party cloud**, ensuring absolute data privacy.
+
+---
+
+## 📋 Initial Requirements
+
+Before setting up CostPilot AI, ensure you have the following prerequisites configured on your system:
+
+1. **Python:** Version `3.10` or higher.
+2. **AWS Account:** An active AWS account.
+3. **IAM User Credentials:** Programmatic access keys (`AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`). Ensure the user has the permissions listed in the [IAM Permissions](#-iam-permissions-required) section.
+4. **Ollama (Optional but Highly Recommended):** Installed locally to utilize the AI Advisor feature.
+
+---
+
+## 🛠️ User Onboarding Guide
+
+Follow these simple steps to get the project running and analyzing your AWS account.
+
+### Step 1: Clone the Repository
+Pull the source code to your machine.
 ```bash
+git clone https://github.com/Kanishkchahar/cloud-cost-optimizer-for-AWS.git
+cd cloud-cost-optimizer-for-AWS
+```
+
+### Step 2: Configure Environment Variables
+Copy the template environment file:
+```bash
+cp .env.example .env
+```
+Open `.env` in any text editor and insert your AWS credentials:
+```env
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
+AWS_DEFAULT_REGION=ap-south-1
+```
+> **Security Note:** Your `.env` file is ignored by Git to prevent accidental credential leaks.
+
+### Step 3: Install and Start Local AI (Ollama)
+Download and install [Ollama](https://ollama.com/download). Once installed, open a new terminal window and run:
+```bash
+ollama pull phi3
+ollama serve
+```
+
+### Step 4: Launch the Platform
+Install the required python packages and start the dashboard!
+```bash
+pip install -r requirements.txt
 python main.py --dashboard
 ```
-*(On Windows, you can simply double-click `run_dashboard.bat`)*
-Then open your browser to `http://127.0.0.1:5000`
+Open `http://127.0.0.1:5000` in your web browser. Create an account, log in, and click **Run Scan**!
 
-### Command Line Interface (CLI)
-You can run scans directly from your terminal with rich formatting:
+---
 
+## 💻 Running Locally for Devs
+
+If you are a developer looking to contribute, utilize the CLI, or tweak the RL agent, follow this setup:
+
+### 1. Virtual Environment Setup
 ```bash
-# Basic scan - see what's wasted
+python -m venv venv
+# Windows:
+venv\Scripts\activate
+# macOS/Linux:
+source venv/bin/activate
+
+pip install -r requirements.txt
+```
+
+### 2. Utilizing the CLI
+The core engine can be utilized entirely from the terminal, bypassing the Flask server. This is excellent for CI/CD integration.
+```bash
+# Basic scan - find out what's wasted
 python main.py --scan
 
-# Scan + get AI recommendations
+# Scan and request AI recommendations in the terminal
 python main.py --scan --ai
 
-# Scan + dry-run cleanup (safe preview of what would be deleted)
+# Dry-run cleanup (Safe preview of deletions)
 python main.py --scan --dry-run
 
-# Scan + actually execute cleanup (will prompt for confirmation)
-python main.py --scan --execute
-
-# Run the autonomous optimizer (collect metrics, forecast, recommend actions)
+# Run the autonomous RL optimizer
 python main.py --optimize
-
-# Optimize and apply actions automatically (use with caution)
-python main.py --optimize --auto-apply
 ```
-*(On Windows, you can double-click `run_scan.bat` for a basic scan)*
 
-### Autonomous Optimizer Settings
-You can tune the optimizer via `.env`:
+### 3. Tuning the Reinforcement Learning Agent
+Developers can tune the RL agent's hyperparameters directly in the `.env` file.
 ```env
-OPTIMIZER_LOOKBACK_DAYS=7
-OPTIMIZER_METRIC_PERIOD=3600
-OPTIMIZER_FORECAST_HORIZON_HOURS=24
-OPTIMIZER_MAX_RESOURCES=200
+OPTIMIZER_LOOKBACK_DAYS=14
 OPTIMIZER_CPU_LOW_PCT=15.0
-OPTIMIZER_CPU_HIGH_PCT=80.0
-OPTIMIZER_ALLOW_EC2_STOP=false
-OPTIMIZER_ALLOW_EC2_RESIZE=true
-OPTIMIZER_ALLOW_RDS_STOP=false
-OPTIMIZER_MIN_CONFIDENCE=0.6
+OPTIMIZER_MIN_CONFIDENCE=0.75
 AUTO_APPLY_OPTIMIZATIONS=false
 ```
 
 ---
 
-## 📁 Project Structure
+## 📁 Project Directory Structure
 
-```
-aws-cost-optimizer/
+```text
+cloud-cost-optimizer-for-AWS/
 ├── main.py                  # CLI & Web App Entry Point
 ├── config.py                # Core configuration & thresholds
 ├── .env                     # Secrets and Environment Config
 ├── requirements.txt         # Python dependencies
-├── dashboard/               # Flask Web Application
-│   ├── app.py               # API Routes and Views
-│   ├── static/              # CSS/JS Assets
-│   └── templates/           # HTML Views
-├── scanner/                 # AWS Boto3 Scanners (EBS, EC2, EIP, Snapshots)
-├── analyzer/                # Cost Estimators & AI Advisor Integrations
-├── actor/                   # Cleanup scripts (Dry-run & Execute)
-├── notifier/                # Email alerting system
-├── db/                      # SQLite Database schemas and models
-└── tests/                   # Unit tests
+├── dashboard/               # Flask Web Application Layer
+│   ├── app.py               # REST API Routes and Views
+│   ├── static/              # Vanilla CSS (Glassmorphism) / JS
+│   └── templates/           # HTML Views (Jinja2)
+├── scanner/                 # AWS SDK Integration
+│   ├── ec2.py               # Compute Scanner
+│   ├── ebs.py               # Storage Scanner
+│   └── s3.py                # Object Scanner
+├── optimizer/               # Intelligence Layer
+│   ├── pipeline.py          # Central data orchestrator
+│   ├── rl_agent.py          # Q-Learning Mathematics
+│   └── deployment_agent.py  # Safe action execution
+├── analyzer/                # Data Processing Layer
+│   ├── cost_estimator.py    # Pricing algorithms
+│   └── ai_advisor.py        # Ollama HTTP interface
+├── db/                      # Persistence Layer
+│   └── database.py          # SQLite connections and schemas
 ```
 
 ---
 
 ## 🔒 IAM Permissions Required
 
-To run the application against your real AWS account, the IAM user must have the following minimum permissions:
+To operate securely, the IAM user attached to this project must have the following minimum JSON policy applied in AWS IAM:
+
+> [!WARNING]  
+> If you intend to use the dashboard to delete resources, ensure the `Delete*` and `Terminate*` permissions are granted. If you only want auditing, remove those actions.
+
 ```json
 {
   "Version": "2012-10-17",
@@ -166,23 +299,16 @@ To run the application against your real AWS account, the IAM user must have the
         "ec2:Describe*",
         "ec2:StartInstances",
         "ec2:StopInstances",
-        "ec2:RebootInstances",
         "ec2:TerminateInstances",
-        "ec2:ModifyInstanceAttribute",
         "ec2:DeleteVolume",
         "ec2:ReleaseAddress",
         "ec2:DeleteSnapshot",
         "rds:Describe*",
-        "rds:StartDBInstance",
         "rds:StopDBInstance",
-        "rds:RebootDBInstance",
         "rds:DeleteDBInstance",
         "s3:ListAllMyBuckets",
-        "s3:ListBucket",
-        "s3:ListBucketMultipartUploads",
         "lambda:ListFunctions",
-        "cloudwatch:GetMetricStatistics",
-        "ce:GetCostAndUsage"
+        "cloudwatch:GetMetricStatistics"
       ],
       "Resource": "*"
     }
@@ -196,4 +322,4 @@ To run the application against your real AWS account, the IAM user must have the
 Contributions, issues, and feature requests are welcome!
 
 ## 📝 License
-This project is open-source and available under the MIT License.
+This project is open-source and available under the **MIT License**.
