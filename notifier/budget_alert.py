@@ -63,15 +63,23 @@ def send_alert_email(budget_result, findings, to_email=None):
     Requires SMTP settings to be configured in .env.
     Returns True if email was sent, False otherwise.
     """
-    recipient = to_email or ALERT_TO
+    recipient = (to_email or ALERT_TO or SMTP_USER or "").strip()
     
     # Check if email is configured
     if not all([SMTP_USER, SMTP_PASSWORD, ALERT_FROM, recipient]):
+        missing = []
+        if not SMTP_USER: missing.append("SMTP_USER")
+        if not SMTP_PASSWORD: missing.append("SMTP_PASSWORD")
+        if not ALERT_FROM: missing.append("ALERT_FROM")
+        if not recipient: missing.append("ALERT_TO/Recipient")
+        
         logger.warning(
-            "Email not configured. Set SMTP_USER, SMTP_PASSWORD, ALERT_FROM, "
-            "ALERT_TO in .env to enable email alerts."
+            f"Email not configured. Missing: {', '.join(missing)}. "
+            "Please check your settings/environment."
         )
         return False
+
+    logger.info(f"Attempting to send alert from {ALERT_FROM} to {recipient}...")
 
     try:
         # Build email
@@ -92,11 +100,28 @@ def send_alert_email(budget_result, findings, to_email=None):
         msg.attach(MIMEText(text_body, "plain"))
         msg.attach(MIMEText(html_body, "html"))
 
-        # Send
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        # Send (try as-is password first; retry once with spaces removed for Gmail app passwords)
+        recipients = [r.strip() for r in recipient.split(",") if r.strip()]
+        password_candidates = [SMTP_PASSWORD]
+        compact_password = SMTP_PASSWORD.replace(" ", "")
+        if compact_password and compact_password != SMTP_PASSWORD:
+            password_candidates.append(compact_password)
+
+        last_auth_error = None
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as server:
             server.starttls()
-            server.login(SMTP_USER, SMTP_PASSWORD)
-            server.sendmail(ALERT_FROM, recipient.split(","), msg.as_string())
+            for pwd in password_candidates:
+                try:
+                    server.login(SMTP_USER, pwd)
+                    last_auth_error = None
+                    break
+                except smtplib.SMTPAuthenticationError as auth_err:
+                    last_auth_error = auth_err
+
+            if last_auth_error is not None:
+                raise last_auth_error
+
+            server.sendmail(ALERT_FROM, recipients, msg.as_string())
 
         logger.info(f"Budget alert email sent to {recipient}")
         return True

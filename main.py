@@ -2,6 +2,7 @@ import argparse
 import logging
 import sys
 import io
+import os
 
 # Force UTF-8 encoding for Windows terminals to prevent emoji crashes
 if sys.stdout.encoding.lower() != 'utf-8':
@@ -136,9 +137,15 @@ Examples:
                 console.print(f"  [cyan]{svc:12}[/cyan] [red]{bar}[/red] ${cost:.2f}")
 
         # Save to database
-        scan_id = save_scan(total, len(findings))
+        scan_user_id = os.getenv("SCAN_USER_ID")
+        try:
+            scan_user_id = int(scan_user_id) if scan_user_id not in (None, "") else None
+        except ValueError:
+            scan_user_id = None
+
+        scan_id = save_scan(total, len(findings), user_id=scan_user_id)
         for f in findings:
-            save_resource(scan_id, f["type"], f["id"], f["detail"], f["waste_usd"], f["region"])
+            save_resource(scan_id, f["type"], f["id"], f["detail"], f["waste_usd"], f["region"], user_id=scan_user_id)
 
         # Budget check
         console.print()
@@ -151,22 +158,11 @@ Examples:
                 title="Budget Alert",
                 border_style="bright_red"
             ))
-            to_email = None
-            try:
-                from db.database import get_connection
-                with get_connection() as conn:
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT email, alert_email FROM users LIMIT 1")
-                    row = cursor.fetchone()
-                    if row:
-                        to_email = row["alert_email"] or row["email"]
-            except Exception as e:
-                pass
-                
-            email_sent = send_alert_email(budget, findings, to_email=to_email)
+            # Use configured recipient from settings/.env (ALERT_TO), not an arbitrary DB user.
+            email_sent = send_alert_email(budget, findings)
             save_alert("budget_exceeded",
                 f"Waste ${budget['total_waste']:.2f} exceeds threshold ${budget['threshold']:.2f}",
-                budget['total_waste'], budget['threshold'], email_sent)
+                budget['total_waste'], budget['threshold'], email_sent, user_id=scan_user_id)
             if email_sent:
                 console.print("[green]  Alert email sent successfully.[/green]")
             else:

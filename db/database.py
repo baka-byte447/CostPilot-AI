@@ -1,10 +1,25 @@
 import sqlite3
 import logging
 import json
+import os
 from datetime import datetime
 from config import DB_PATH
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_user_id(user_id=None):
+    """Resolve user_id from explicit arg or runtime environment context."""
+    if user_id is not None:
+        return user_id
+    for key in ("CURRENT_USER_ID", "SCAN_USER_ID"):
+        raw = os.getenv(key)
+        if raw not in (None, ""):
+            try:
+                return int(raw)
+            except ValueError:
+                continue
+    return None
 
 
 def get_connection():
@@ -62,6 +77,11 @@ def setup_db():
             """)
 
             try:
+                cursor.execute("ALTER TABLE scans ADD COLUMN user_id INTEGER")
+            except sqlite3.OperationalError:
+                pass
+
+            try:
                 cursor.execute("ALTER TABLE scans ADD COLUMN ai_advice TEXT")
             except sqlite3.OperationalError:
                 pass
@@ -82,6 +102,11 @@ def setup_db():
                 )
             """)
 
+            try:
+                cursor.execute("ALTER TABLE resources ADD COLUMN user_id INTEGER")
+            except sqlite3.OperationalError:
+                pass
+
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS alerts (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -93,6 +118,11 @@ def setup_db():
                     email_sent INTEGER DEFAULT 0
                 )
             """)
+
+            try:
+                cursor.execute("ALTER TABLE alerts ADD COLUMN user_id INTEGER")
+            except sqlite3.OperationalError:
+                pass
 
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS metrics (
@@ -113,6 +143,10 @@ def setup_db():
                     points INTEGER DEFAULT 0
                 )
             """)
+            try:
+                cursor.execute("ALTER TABLE metrics ADD COLUMN user_id INTEGER")
+            except sqlite3.OperationalError:
+                pass
 
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS forecasts (
@@ -128,6 +162,10 @@ def setup_db():
                     region TEXT
                 )
             """)
+            try:
+                cursor.execute("ALTER TABLE forecasts ADD COLUMN user_id INTEGER")
+            except sqlite3.OperationalError:
+                pass
             try:
                 cursor.execute("ALTER TABLE forecasts ADD COLUMN current_avg REAL")
             except sqlite3.OperationalError:
@@ -155,6 +193,10 @@ def setup_db():
                     apply_result TEXT
                 )
             """)
+            try:
+                cursor.execute("ALTER TABLE optimizations ADD COLUMN user_id INTEGER")
+            except sqlite3.OperationalError:
+                pass
 
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS audit_logs (
@@ -230,15 +272,16 @@ def update_user_credentials(user_id, aws_access, aws_secret, aws_region, alert_e
 
 
 
-def save_alert(alert_type, message, total_waste, threshold, email_sent=False):
+def save_alert(alert_type, message, total_waste, threshold, email_sent=False, user_id=None):
     """Save an alert record to the database."""
+    user_id = _resolve_user_id(user_id)
     try:
         with get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                """INSERT INTO alerts (timestamp, alert_type, message, total_waste, threshold, email_sent)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
-                (datetime.now().isoformat(), alert_type, message, total_waste, threshold, 1 if email_sent else 0)
+                     """INSERT INTO alerts (timestamp, alert_type, message, total_waste, threshold, email_sent, user_id)
+                         VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                     (datetime.now().isoformat(), alert_type, message, total_waste, threshold, 1 if email_sent else 0, user_id)
             )
             conn.commit()
             return cursor.lastrowid
@@ -247,38 +290,45 @@ def save_alert(alert_type, message, total_waste, threshold, email_sent=False):
         return None
 
 
-def get_alerts(limit=50):
+def get_alerts(limit=50, user_id=None):
     """Return recent alerts, newest first."""
     try:
         with get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM alerts ORDER BY timestamp DESC LIMIT ?", (limit,))
+            if user_id is None:
+                cursor.execute("SELECT * FROM alerts ORDER BY timestamp DESC LIMIT ?", (limit,))
+            else:
+                cursor.execute("SELECT * FROM alerts WHERE user_id = ? ORDER BY timestamp DESC LIMIT ?", (user_id, limit))
             return [dict(row) for row in cursor.fetchall()]
     except sqlite3.Error as e:
         logger.error(f"Failed to fetch alerts: {e}")
         return []
 
 
-def clear_all_alerts():
+def clear_all_alerts(user_id=None):
     """Clear all alerts from the database."""
     try:
         with get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("DELETE FROM alerts")
+            if user_id is None:
+                cursor.execute("DELETE FROM alerts")
+            else:
+                cursor.execute("DELETE FROM alerts WHERE user_id = ?", (user_id,))
             conn.commit()
     except sqlite3.Error as e:
         logger.error(f"Failed to clear alerts: {e}")
         raise
 
 
-def save_scan(total_waste, resources_found):
+def save_scan(total_waste, resources_found, user_id=None):
     """Save a scan record and return the scan ID."""
+    user_id = _resolve_user_id(user_id)
     try:
         with get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "INSERT INTO scans (timestamp, total_waste_usd, resources_found) VALUES (?, ?, ?)",
-                (datetime.now().isoformat(), total_waste, resources_found)
+                "INSERT INTO scans (timestamp, total_waste_usd, resources_found, user_id) VALUES (?, ?, ?, ?)",
+                (datetime.now().isoformat(), total_waste, resources_found, user_id)
             )
             scan_id = cursor.lastrowid
             conn.commit()
@@ -289,16 +339,17 @@ def save_scan(total_waste, resources_found):
         raise
 
 
-def save_resource(scan_id, resource_type, resource_id, detail, waste_usd, region):
+def save_resource(scan_id, resource_type, resource_id, detail, waste_usd, region, user_id=None):
     """Save a detected resource to the database."""
+    user_id = _resolve_user_id(user_id)
     try:
         with get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """INSERT INTO resources 
-                   (scan_id, resource_type, resource_id, detail, waste_usd, region, status, detected_at) 
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                (scan_id, resource_type, resource_id, detail, waste_usd, region, "detected", datetime.now().isoformat())
+                         (scan_id, resource_type, resource_id, detail, waste_usd, region, status, detected_at, user_id) 
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                     (scan_id, resource_type, resource_id, detail, waste_usd, region, "detected", datetime.now().isoformat(), user_id)
             )
             conn.commit()
     except sqlite3.Error as e:
@@ -306,53 +357,69 @@ def save_resource(scan_id, resource_type, resource_id, detail, waste_usd, region
         raise
 
 
-def get_all_scans():
+def get_all_scans(user_id=None):
     """Return all scan records, newest first."""
     try:
         with get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM scans ORDER BY timestamp DESC")
+            if user_id is None:
+                cursor.execute("SELECT * FROM scans ORDER BY timestamp DESC")
+            else:
+                cursor.execute("SELECT * FROM scans WHERE user_id = ? ORDER BY timestamp DESC", (user_id,))
             return [dict(row) for row in cursor.fetchall()]
     except sqlite3.Error as e:
         logger.error(f"Failed to fetch scans: {e}")
         return []
 
 
-def clear_all_scans():
+def clear_all_scans(user_id=None):
     """Clear all scans and associated resources from the database."""
     try:
         with get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("DELETE FROM resources")
-            cursor.execute("DELETE FROM scans")
+            if user_id is None:
+                cursor.execute("DELETE FROM resources")
+                cursor.execute("DELETE FROM scans")
+            else:
+                cursor.execute("DELETE FROM resources WHERE user_id = ?", (user_id,))
+                cursor.execute("DELETE FROM scans WHERE user_id = ?", (user_id,))
             conn.commit()
     except sqlite3.Error as e:
         logger.error(f"Failed to clear scans: {e}")
         raise
 
 
-def get_scan_resources(scan_id):
+def get_scan_resources(scan_id, user_id=None):
     """Return all resources for a given scan."""
     try:
         with get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM resources WHERE scan_id = ? ORDER BY waste_usd DESC", (scan_id,))
+            if user_id is None:
+                cursor.execute("SELECT * FROM resources WHERE scan_id = ? ORDER BY waste_usd DESC", (scan_id,))
+            else:
+                cursor.execute(
+                    "SELECT * FROM resources WHERE scan_id = ? AND user_id = ? ORDER BY waste_usd DESC",
+                    (scan_id, user_id),
+                )
             return [dict(row) for row in cursor.fetchall()]
     except sqlite3.Error as e:
         logger.error(f"Failed to fetch resources for scan {scan_id}: {e}")
         return []
 
 
-def get_latest_scan():
+def get_latest_scan(user_id=None):
     """Return the most recent scan and its resources."""
     try:
         with get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM scans ORDER BY timestamp DESC LIMIT 1")
+            if user_id is None:
+                cursor.execute("SELECT * FROM scans ORDER BY timestamp DESC LIMIT 1")
+            else:
+                cursor.execute("SELECT * FROM scans WHERE user_id = ? ORDER BY timestamp DESC LIMIT 1", (user_id,))
             scan = cursor.fetchone()
             if scan:
                 scan = dict(scan)
-                scan["resources"] = get_scan_resources(scan["id"])
+                scan["resources"] = get_scan_resources(scan["id"], user_id=user_id)
                 return scan
             return None
     except sqlite3.Error as e:
@@ -360,15 +427,21 @@ def get_latest_scan():
         return None
 
 
-def get_cost_trend(limit=30):
+def get_cost_trend(limit=30, user_id=None):
     """Return the last N scans for cost trend charting."""
     try:
         with get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute(
-                "SELECT timestamp, total_waste_usd, resources_found FROM scans ORDER BY timestamp DESC LIMIT ?",
-                (limit,)
-            )
+            if user_id is None:
+                cursor.execute(
+                    "SELECT timestamp, total_waste_usd, resources_found FROM scans ORDER BY timestamp DESC LIMIT ?",
+                    (limit,)
+                )
+            else:
+                cursor.execute(
+                    "SELECT timestamp, total_waste_usd, resources_found FROM scans WHERE user_id = ? ORDER BY timestamp DESC LIMIT ?",
+                    (user_id, limit),
+                )
             rows = [dict(row) for row in cursor.fetchall()]
             rows.reverse()  # oldest first for chart
             return rows
@@ -377,15 +450,21 @@ def get_cost_trend(limit=30):
         return []
 
 
-def update_resource_status(resource_id, status):
+def update_resource_status(resource_id, status, user_id=None):
     """Update the status of a resource (e.g., 'deleted', 'kept')."""
     try:
         with get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute(
-                "UPDATE resources SET status = ? WHERE resource_id = ?",
-                (status, resource_id)
-            )
+            if user_id is None:
+                cursor.execute(
+                    "UPDATE resources SET status = ? WHERE resource_id = ?",
+                    (status, resource_id)
+                )
+            else:
+                cursor.execute(
+                    "UPDATE resources SET status = ? WHERE resource_id = ? AND user_id = ?",
+                    (status, resource_id, user_id)
+                )
             conn.commit()
     except sqlite3.Error as e:
         logger.error(f"Failed to update resource {resource_id}: {e}")
@@ -411,6 +490,7 @@ def save_metrics(metrics):
     """Save collected metric series summaries."""
     if not metrics:
         return
+    user_id = _resolve_user_id()
     try:
         with get_connection() as conn:
             cursor = conn.cursor()
@@ -419,8 +499,8 @@ def save_metrics(metrics):
                     """INSERT INTO metrics
                        (collected_at, resource_id, resource_type, metric_name, namespace,
                         avg_value, max_value, min_value, unit, period_seconds, start_time,
-                        end_time, region, points)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                end_time, region, points, user_id)
+                              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
                         datetime.now().isoformat(),
                         m.resource_id,
@@ -436,6 +516,7 @@ def save_metrics(metrics):
                         m.end_time.isoformat(),
                         m.region,
                         len(m.datapoints),
+                        user_id,
                     ),
                 )
             conn.commit()
@@ -448,6 +529,7 @@ def save_forecasts(forecasts):
     """Save forecasted metric values."""
     if not forecasts:
         return
+    user_id = _resolve_user_id()
     try:
         with get_connection() as conn:
             cursor = conn.cursor()
@@ -455,8 +537,8 @@ def save_forecasts(forecasts):
                 cursor.execute(
                     """INSERT INTO forecasts
                        (created_at, resource_id, resource_type, metric_name, predicted_avg,
-                        predicted_peak, horizon_hours, method, region, current_avg, current_peak)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                predicted_peak, horizon_hours, method, region, current_avg, current_peak, user_id)
+                              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
                         datetime.now().isoformat(),
                         f.resource_id,
@@ -469,6 +551,7 @@ def save_forecasts(forecasts):
                         f.region,
                         getattr(f, "current_avg", None),
                         getattr(f, "current_peak", None),
+                        user_id,
                     ),
                 )
             conn.commit()
@@ -482,6 +565,7 @@ def save_optimizations(actions):
     if not actions:
         return []
     ids = []
+    user_id = _resolve_user_id()
     try:
         with get_connection() as conn:
             cursor = conn.cursor()
@@ -489,8 +573,8 @@ def save_optimizations(actions):
                 cursor.execute(
                     """INSERT INTO optimizations
                        (created_at, resource_id, resource_type, action, parameters_json,
-                        reason, confidence, estimated_savings, status, explanation, region)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                reason, confidence, estimated_savings, status, explanation, region, user_id)
+                              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
                         datetime.now().isoformat(),
                         action.get("resource_id"),
@@ -503,6 +587,7 @@ def save_optimizations(actions):
                         action.get("status", "planned"),
                         action.get("explanation"),
                         action.get("region"),
+                        user_id,
                     ),
                 )
                 action_id = cursor.lastrowid
@@ -556,15 +641,22 @@ def update_optimization_explanation(action_id, explanation):
         raise
 
 
-def get_recent_optimizations(limit=50):
+def get_recent_optimizations(limit=50, user_id=None):
     """Return recent optimization actions, newest first."""
+    user_id = _resolve_user_id(user_id)
     try:
         with get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute(
-                "SELECT * FROM optimizations ORDER BY created_at DESC LIMIT ?",
-                (limit,),
-            )
+            if user_id is None:
+                cursor.execute(
+                    "SELECT * FROM optimizations ORDER BY created_at DESC LIMIT ?",
+                    (limit,),
+                )
+            else:
+                cursor.execute(
+                    "SELECT * FROM optimizations WHERE user_id = ? ORDER BY created_at DESC LIMIT ?",
+                    (user_id, limit),
+                )
             rows = [dict(row) for row in cursor.fetchall()]
             for row in rows:
                 if row.get("parameters_json"):
@@ -578,32 +670,46 @@ def get_recent_optimizations(limit=50):
         return []
 
 
-def get_recent_forecasts(limit=50):
+def get_recent_forecasts(limit=50, user_id=None):
     """Return recent forecasts, newest first."""
+    user_id = _resolve_user_id(user_id)
     try:
         with get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute(
-                "SELECT * FROM forecasts ORDER BY created_at DESC LIMIT ?",
-                (limit,),
-            )
+            if user_id is None:
+                cursor.execute(
+                    "SELECT * FROM forecasts ORDER BY created_at DESC LIMIT ?",
+                    (limit,),
+                )
+            else:
+                cursor.execute(
+                    "SELECT * FROM forecasts WHERE user_id = ? ORDER BY created_at DESC LIMIT ?",
+                    (user_id, limit),
+                )
             return [dict(row) for row in cursor.fetchall()]
     except sqlite3.Error as e:
         logger.error(f"Failed to fetch forecasts: {e}")
         return []
 
 
-def get_latest_optimization_by_resource(resource_id):
+def get_latest_optimization_by_resource(resource_id, user_id=None):
     """Return latest optimization record for the resource."""
     if not resource_id:
         return None
+    user_id = _resolve_user_id(user_id)
     try:
         with get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute(
-                "SELECT * FROM optimizations WHERE resource_id = ? ORDER BY created_at DESC LIMIT 1",
-                (resource_id,),
-            )
+            if user_id is None:
+                cursor.execute(
+                    "SELECT * FROM optimizations WHERE resource_id = ? ORDER BY created_at DESC LIMIT 1",
+                    (resource_id,),
+                )
+            else:
+                cursor.execute(
+                    "SELECT * FROM optimizations WHERE resource_id = ? AND user_id = ? ORDER BY created_at DESC LIMIT 1",
+                    (resource_id, user_id),
+                )
             row = cursor.fetchone()
             if not row:
                 return None
